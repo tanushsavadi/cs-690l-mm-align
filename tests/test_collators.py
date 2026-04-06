@@ -1,9 +1,11 @@
 from pathlib import Path
 
 import torch
+import pandas as pd
 from PIL import Image
 
 from mm_align.training.collators import PathAwareVisionPreferenceCollator
+from mm_align.training.datasets import frame_to_hf_dataset
 
 
 class _MockProcessor:
@@ -77,3 +79,30 @@ def test_path_aware_vision_preference_collator_builds_completion_mask(tmp_path: 
     assert batch["completion_mask"][1].sum().item() > 0
     assert batch["pixel_values"].shape[0] == 2
     assert batch["sample_id"] == ["sample-1"]
+
+
+def test_frame_to_hf_dataset_can_materialize_images(tmp_path: Path) -> None:
+    image_path = tmp_path / "dataset.png"
+    Image.new("RGB", (8, 8), color=(10, 20, 30)).save(image_path)
+
+    frame = pd.DataFrame(
+        [
+            {
+                "sample_id": "sample-1",
+                "dataset": "rlaif-v",
+                "split": "train",
+                "image_path": str(image_path),
+                "prompt": "Describe the chart",
+                "chosen": "The line increases",
+                "rejected": "There is a dog",
+                "ground_truth": "",
+                "metadata": "{}",
+                "mismatch_image_path": str(image_path),
+            }
+        ]
+    )
+
+    dataset = frame_to_hf_dataset(frame, include_images=True)
+    record = dataset[0]
+    assert "images" in record
+    assert record["prompt"] == "Describe the chart"

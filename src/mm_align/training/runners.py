@@ -17,8 +17,6 @@ def run_standard_dpo(config: ProjectConfig) -> str:
 
     from trl import DPOConfig, DPOTrainer
 
-    from mm_align.training.collators import PathAwareVisionPreferenceCollator
-
     model_variant = "standard_dpo"
     run_id = build_run_id(model_variant, config.training.subset_name, config.runtime.seed)
     run_paths = ensure_run_paths(config.runtime.artifacts_dir, run_id)
@@ -26,16 +24,10 @@ def run_standard_dpo(config: ProjectConfig) -> str:
 
     train_frame = load_training_frame(config)
     val_frame = load_validation_frame(config)
-    train_dataset = frame_to_hf_dataset(train_frame)
-    eval_dataset = frame_to_hf_dataset(val_frame) if not val_frame.empty else None
+    train_dataset = frame_to_hf_dataset(train_frame, include_images=True)
+    eval_dataset = frame_to_hf_dataset(val_frame, include_images=True) if not val_frame.empty else None
 
     model, ref_model, processor = load_trainable_models(config)
-    collator = PathAwareVisionPreferenceCollator(
-        processor=processor,
-        max_length=config.training.max_length,
-        use_mismatch_images=False,
-        include_sample_ids=False,
-    )
     trainer_args = DPOConfig(
         output_dir=str(run_paths.root / "checkpoints"),
         per_device_train_batch_size=config.training.per_device_train_batch_size,
@@ -64,7 +56,6 @@ def run_standard_dpo(config: ProjectConfig) -> str:
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         processing_class=processor,
-        data_collator=collator,
     )
     train_result = trainer.train()
     adapter_dir = run_paths.root / "adapter"

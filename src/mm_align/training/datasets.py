@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from mm_align.config import ProjectConfig
+from mm_align.utils.images import load_image
 
 
 def load_training_frame(config: ProjectConfig, subset_name: str | None = None) -> pd.DataFrame:
@@ -22,10 +23,13 @@ def load_validation_frame(config: ProjectConfig) -> pd.DataFrame:
     return pd.read_parquet(path)
 
 
-def frame_to_hf_dataset(frame: pd.DataFrame):
+def frame_to_hf_dataset(frame: pd.DataFrame, include_images: bool = False):
     from datasets import Dataset
 
     records = frame.to_dict(orient="records")
+    if include_images:
+        for record in records:
+            record["images"] = load_image(record["image_path"])
     return Dataset.from_list(records)
 
 
