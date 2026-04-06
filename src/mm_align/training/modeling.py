@@ -57,6 +57,8 @@ def load_trainable_models(config: ProjectConfig) -> tuple[Any, Any, Any]:
         task_type="CAUSAL_LM",
     )
     policy_model = get_peft_model(policy_model, lora_config)
+    if config.training.gradient_checkpointing and hasattr(policy_model, "enable_input_require_grads"):
+        policy_model.enable_input_require_grads()
     policy_model.train()
     ref_model.eval()
     for parameter in ref_model.parameters():

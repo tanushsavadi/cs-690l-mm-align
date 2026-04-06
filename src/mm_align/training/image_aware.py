@@ -29,28 +29,44 @@ def _sequence_logps(model: Any, batch: dict[str, Any]) -> tuple[Any, Any, Any]:
     device = next(model.parameters()).device
     inputs = _tensor_inputs(batch, device)
     outputs = model(**inputs)
-    logits = outputs.logits[:, :-1, :]
-    labels = inputs["input_ids"][:, 1:]
+    logits = outputs.logits[:, :-1, :].contiguous()
+    labels = inputs["input_ids"][:, 1:].contiguous()
     mask = batch["completion_mask"][:, 1:].to(device)
-    log_probs = torch.log_softmax(logits, dim=-1)
-    token_logps = log_probs.gather(dim=-1, index=labels.unsqueeze(-1)).squeeze(-1)
+    token_losses = torch.nn.functional.cross_entropy(
+        logits.view(-1, logits.size(-1)),
+        labels.view(-1),
+        reduction="none",
+    ).view_as(labels)
+    token_logps = -token_losses
     sequence_logps = (token_logps * mask).sum(dim=-1)
     token_counts = mask.sum(dim=-1).clamp(min=1)
     return sequence_logps, token_counts, outputs
 
 
+def _slice_batch(batch: dict[str, Any], start: int, end: int) -> dict[str, Any]:
+    import torch
+
+    sliced: dict[str, Any] = {}
+    for key, value in batch.items():
+        if key == "sample_id":
+            sliced[key] = value[start:end]
+        elif isinstance(value, torch.Tensor):
+            sliced[key] = value[start:end]
+    return sliced
+
+
 def _dpo_components(policy_model: Any, ref_model: Any, batch: dict[str, Any], beta: float) -> dict[str, Any]:
     import torch
 
-    policy_logps, token_counts, _ = _sequence_logps(policy_model, batch)
-    with torch.no_grad():
-        ref_logps, _, _ = _sequence_logps(ref_model, batch)
-
     batch_size = len(batch["sample_id"])
-    policy_chosen = policy_logps[:batch_size]
-    policy_rejected = policy_logps[batch_size:]
-    ref_chosen = ref_logps[:batch_size]
-    ref_rejected = ref_logps[batch_size:]
+    chosen_batch = _slice_batch(batch, 0, batch_size)
+    rejected_batch = _slice_batch(batch, batch_size, batch_size * 2)
+
+    policy_chosen, token_counts, _ = _sequence_logps(policy_model, chosen_batch)
+    policy_rejected, _, _ = _sequence_logps(policy_model, rejected_batch)
+    with torch.no_grad():
+        ref_chosen, _, _ = _sequence_logps(ref_model, chosen_batch)
+        ref_rejected, _, _ = _sequence_logps(ref_model, rejected_batch)
 
     normalized_margin = (policy_chosen - ref_chosen) - (policy_rejected - ref_rejected)
     dpo_loss = -torch.nn.functional.logsigmoid(beta * normalized_margin).mean()

@@ -60,7 +60,7 @@ training:
   weight_decay: 0.01
   warmup_ratio: 0.03
   num_train_epochs: 1.0
-  max_length: null
+  max_length: 1024
   gradient_checkpointing: true
   precision: bf16
   beta: 0.1
