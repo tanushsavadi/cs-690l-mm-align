@@ -1,0 +1,33 @@
+from __future__ import annotations
+
+import plotly.express as px
+import streamlit as st
+
+from app.common import load_summary, require_run
+
+st.title("Overview")
+run_id = require_run()
+if not run_id:
+    st.stop()
+
+summary = load_summary(run_id)
+if summary.empty:
+    st.info("Dashboard summary artifacts are missing. Run build-dashboard-data first.")
+    st.stop()
+
+benchmarks = sorted(summary["benchmark"].unique())
+selected_benchmark = st.selectbox("Benchmark", ["All"] + benchmarks)
+view = summary if selected_benchmark == "All" else summary[summary["benchmark"] == selected_benchmark]
+
+metrics = view[~view["metric"].str.contains(r"\.", regex=True)]
+if not metrics.empty:
+    columns = st.columns(min(4, max(1, len(metrics))))
+    for column, (_, row) in zip(columns, metrics.iterrows()):
+        column.metric(label=f"{row['benchmark']}:{row['metric']}", value=f"{row['value']:.3f}")
+
+st.subheader("Metric Table")
+st.dataframe(view, use_container_width=True, hide_index=True)
+
+st.subheader("Metric Chart")
+figure = px.bar(view, x="metric", y="value", color="benchmark", barmode="group")
+st.plotly_chart(figure, use_container_width=True, theme="streamlit")

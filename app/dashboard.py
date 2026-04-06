@@ -1,0 +1,22 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import streamlit as st
+
+from app.common import require_run
+
+st.set_page_config(page_title="Multimodal Alignment Dashboard", layout="wide")
+
+require_run()
+
+pages_root = Path(__file__).resolve().parent / "pages"
+navigation = st.navigation(
+    [
+        st.Page(pages_root / "1_Overview.py", title="Overview", icon=":material/dashboard:"),
+        st.Page(pages_root / "2_Examples.py", title="Examples", icon=":material/image:"),
+        st.Page(pages_root / "3_Preferences.py", title="Preferences", icon=":material/tune:"),
+        st.Page(pages_root / "4_Failures.py", title="Failures", icon=":material/error:"),
+    ]
+)
+navigation.run()

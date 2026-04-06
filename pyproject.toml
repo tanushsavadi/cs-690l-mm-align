@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mm-align"
+version = "0.1.0"
+description = "Multimodal hallucination alignment research toolkit."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+  "accelerate>=1.0.0",
+  "datasets>=3.0.0",
+  "numpy>=1.26.0",
+  "packaging>=24.0",
+  "pandas>=2.2.0",
+  "pillow>=10.4.0",
+  "plotly>=5.24.0",
+  "pyarrow>=17.0.0",
+  "pydantic>=2.8.0",
+  "pyyaml>=6.0.2",
+  "streamlit==1.50.0",
+  "transformers==4.57.6",
+  "trl==0.24.0",
+  "peft>=0.13.0",
+  "torch>=2.5.0",
+  "torchvision>=0.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+]
+cuda = [
+  "bitsandbytes>=0.45.0; platform_system != 'Darwin'",
+]
+
+[project.scripts]
+mm-align = "mm_align.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
