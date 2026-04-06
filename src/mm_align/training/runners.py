@@ -34,6 +34,7 @@ def run_standard_dpo(config: ProjectConfig) -> str:
         processor=processor,
         max_length=config.training.max_length,
         use_mismatch_images=False,
+        include_sample_ids=False,
     )
     trainer_args = DPOConfig(
         output_dir=str(run_paths.root / "checkpoints"),

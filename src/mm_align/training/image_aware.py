@@ -124,11 +124,13 @@ class ImageAwareDPOTrainer:
             processor=self.processor,
             max_length=self.config.training.max_length,
             use_mismatch_images=False,
+            include_sample_ids=True,
         )
         mismatched_collator = PathAwareVisionPreferenceCollator(
             processor=self.processor,
             max_length=self.config.training.max_length,
             use_mismatch_images=True,
+            include_sample_ids=True,
         )
 
         steps_per_epoch = max(1, math.ceil(len(self.train_records) / self.config.training.per_device_train_batch_size))
@@ -208,11 +210,16 @@ def materialize_preference_preview(
         return
 
     raw_loader = DataLoader(preview_records, batch_size=4, shuffle=False, collate_fn=lambda batch: batch)
-    matched_collator = PathAwareVisionPreferenceCollator(processor=processor, max_length=config.training.max_length)
+    matched_collator = PathAwareVisionPreferenceCollator(
+        processor=processor,
+        max_length=config.training.max_length,
+        include_sample_ids=True,
+    )
     mismatched_collator = PathAwareVisionPreferenceCollator(
         processor=processor,
         max_length=config.training.max_length,
         use_mismatch_images=True,
+        include_sample_ids=True,
     )
 
     rows: list[dict[str, Any]] = []
