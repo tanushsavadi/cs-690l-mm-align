@@ -49,6 +49,7 @@ class _MockProcessor:
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             "pixel_values": pixel_values,
+            "image_grid_thw": torch.tensor([[1, 2, 2] for _ in images], dtype=torch.long),
         }
 
 
@@ -78,6 +79,7 @@ def test_path_aware_vision_preference_collator_builds_completion_mask(tmp_path: 
     assert batch["completion_mask"][0].sum().item() > 0
     assert batch["completion_mask"][1].sum().item() > 0
     assert batch["pixel_values"].shape[0] == 2
+    assert batch["image_grid_thw"].shape == (2, 3)
     assert batch["sample_id"] == ["sample-1"]
 
 

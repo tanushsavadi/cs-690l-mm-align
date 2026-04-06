@@ -184,6 +184,85 @@ class ImageAwareDPOTrainer:
         }
 
 
+@dataclass
+class StandardDPOTrainer:
+    model: Any
+    ref_model: Any
+    processor: Any
+    train_records: list[dict[str, Any]]
+    config: ProjectConfig
+    output_dir: Path
+
+    def train(self) -> dict[str, Any]:
+        import torch
+        from torch.optim import AdamW
+        from torch.utils.data import DataLoader
+        from transformers import get_linear_schedule_with_warmup
+
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        raw_loader = DataLoader(
+            self.train_records,
+            batch_size=self.config.training.per_device_train_batch_size,
+            shuffle=True,
+            collate_fn=lambda batch: batch,
+        )
+        collator = PathAwareVisionPreferenceCollator(
+            processor=self.processor,
+            max_length=self.config.training.max_length,
+            include_sample_ids=True,
+        )
+
+        steps_per_epoch = max(1, math.ceil(len(self.train_records) / self.config.training.per_device_train_batch_size))
+        optimizer_steps = max(
+            1,
+            math.ceil(steps_per_epoch * self.config.training.num_train_epochs / self.config.training.gradient_accumulation_steps),
+        )
+        optimizer = AdamW((param for param in self.model.parameters() if param.requires_grad), lr=self.config.training.learning_rate)
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer=optimizer,
+            num_warmup_steps=max(1, int(optimizer_steps * self.config.training.warmup_ratio)),
+            num_training_steps=optimizer_steps,
+        )
+
+        device_type = "cuda"
+        dtype = torch.bfloat16 if self.config.training.precision == "bf16" else torch.float16
+        metrics_history: list[dict[str, float]] = []
+        global_step = 0
+        optimizer.zero_grad(set_to_none=True)
+
+        for epoch in range(max(1, int(math.ceil(self.config.training.num_train_epochs)))):
+            for batch_index, examples in enumerate(raw_loader):
+                batch = collator(examples)
+                with torch.autocast(device_type=device_type, dtype=dtype):
+                    components = _dpo_components(self.model, self.ref_model, batch, beta=self.config.training.beta)
+                    loss = components["dpo_loss"]
+                    scaled_loss = loss / self.config.training.gradient_accumulation_steps
+                scaled_loss.backward()
+                if (batch_index + 1) % self.config.training.gradient_accumulation_steps == 0:
+                    optimizer.step()
+                    scheduler.step()
+                    optimizer.zero_grad(set_to_none=True)
+                    global_step += 1
+                    metrics_history.append(
+                        {
+                            "step": float(global_step),
+                            "epoch": float(epoch),
+                            "loss": float(loss.detach().cpu()),
+                            "dpo_loss": float(components["dpo_loss"].detach().cpu()),
+                            "matched_margin": float(components["normalized_margin"].mean().detach().cpu()),
+                        }
+                    )
+
+        self.model.save_pretrained(self.output_dir)
+        self.processor.save_pretrained(self.output_dir)
+        return {
+            "global_step": global_step,
+            "optimizer_steps": optimizer_steps,
+            "last_metrics": metrics_history[-1] if metrics_history else {},
+            "log_history": metrics_history,
+        }
+
+
 def materialize_preference_preview(
     frame: pd.DataFrame,
     processor: Any,
