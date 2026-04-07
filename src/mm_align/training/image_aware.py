@@ -11,6 +11,13 @@ from mm_align.config import ProjectConfig
 from mm_align.training.collators import PathAwareVisionPreferenceCollator
 
 
+def _should_log_step(step: int, total_steps: int) -> bool:
+    if step <= 3 or step == total_steps:
+        return True
+    interval = max(1, total_steps // 10)
+    return step % interval == 0
+
+
 def _tensor_inputs(batch: dict[str, Any], device: Any) -> dict[str, Any]:
     import torch
 
@@ -174,6 +181,11 @@ class ImageAwareDPOTrainer:
         metrics_history: list[dict[str, float]] = []
         global_step = 0
         optimizer.zero_grad(set_to_none=True)
+        print(
+            f"[image-aware-dpo] starting training: examples={len(self.train_records)} "
+            f"optimizer_steps={optimizer_steps} grad_accum={self.config.training.gradient_accumulation_steps}",
+            flush=True,
+        )
 
         for epoch in range(max(1, int(math.ceil(self.config.training.num_train_epochs)))):
             for batch_index, examples in enumerate(raw_loader):
@@ -197,6 +209,15 @@ class ImageAwareDPOTrainer:
                     metrics["step"] = float(global_step)
                     metrics["epoch"] = float(epoch)
                     metrics_history.append(metrics)
+                    if _should_log_step(global_step, optimizer_steps):
+                        print(
+                            "[image-aware-dpo] "
+                            f"step={global_step}/{optimizer_steps} "
+                            f"loss={metrics['loss']:.4f} "
+                            f"dpo={metrics['dpo_loss']:.4f} "
+                            f"gap={metrics['gap_loss']:.4f}",
+                            flush=True,
+                        )
 
         self.model.save_pretrained(self.output_dir)
         self.processor.save_pretrained(self.output_dir)
@@ -253,6 +274,11 @@ class StandardDPOTrainer:
         metrics_history: list[dict[str, float]] = []
         global_step = 0
         optimizer.zero_grad(set_to_none=True)
+        print(
+            f"[standard-dpo] starting training: examples={len(self.train_records)} "
+            f"optimizer_steps={optimizer_steps} grad_accum={self.config.training.gradient_accumulation_steps}",
+            flush=True,
+        )
 
         for epoch in range(max(1, int(math.ceil(self.config.training.num_train_epochs)))):
             for batch_index, examples in enumerate(raw_loader):
@@ -276,6 +302,14 @@ class StandardDPOTrainer:
                             "matched_margin": float(components["normalized_margin"].mean().detach().cpu()),
                         }
                     )
+                    if _should_log_step(global_step, optimizer_steps):
+                        print(
+                            "[standard-dpo] "
+                            f"step={global_step}/{optimizer_steps} "
+                            f"loss={metrics_history[-1]['loss']:.4f} "
+                            f"margin={metrics_history[-1]['matched_margin']:.4f}",
+                            flush=True,
+                        )
 
         self.model.save_pretrained(self.output_dir)
         self.processor.save_pretrained(self.output_dir)

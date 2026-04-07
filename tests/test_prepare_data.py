@@ -54,6 +54,9 @@ def test_prepare_data_from_local_parquet(tmp_path: Path) -> None:
     val_frame = pd.read_parquet(val_path)
     assert len(val_frame) == 2
 
+    smoke_frame = pd.read_parquet(outputs["rlaif-v"]["smoke"])
+    assert len(smoke_frame) == 4
+
 
 def test_prepare_data_only_materializes_requested_subset(tmp_path: Path) -> None:
     image_dir = tmp_path / "images"
