@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from mm_align.config import ProjectConfig
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _dtype_for_config(config: ProjectConfig):
@@ -21,6 +24,7 @@ def load_processor(config: ProjectConfig) -> Any:
         kwargs["min_pixels"] = config.model.min_pixels
     if config.model.max_pixels is not None:
         kwargs["max_pixels"] = config.model.max_pixels
+    LOGGER.info("Loading processor %s", processor_name)
     return AutoProcessor.from_pretrained(processor_name, **kwargs)
 
 
@@ -45,8 +49,11 @@ def load_trainable_models(config: ProjectConfig) -> tuple[Any, Any, Any]:
     if config.model.attn_implementation:
         common_kwargs["attn_implementation"] = config.model.attn_implementation
 
+    LOGGER.info("Loading policy model %s", config.model.base_model_name)
     policy_model = AutoModelForImageTextToText.from_pretrained(config.model.base_model_name, **common_kwargs)
+    LOGGER.info("Loading reference model %s", config.model.base_model_name)
     ref_model = AutoModelForImageTextToText.from_pretrained(config.model.base_model_name, **common_kwargs)
+    LOGGER.info("Preparing policy model for k-bit training and LoRA")
     policy_model = prepare_model_for_kbit_training(policy_model, use_gradient_checkpointing=config.training.gradient_checkpointing)
     lora_config = LoraConfig(
         r=config.lora.r,
@@ -64,6 +71,7 @@ def load_trainable_models(config: ProjectConfig) -> tuple[Any, Any, Any]:
     for parameter in ref_model.parameters():
         parameter.requires_grad = False
     processor = load_processor(config)
+    LOGGER.info("Finished loading trainable models and processor")
     return policy_model, ref_model, processor
 
 
@@ -72,6 +80,7 @@ def load_model_for_evaluation(config: ProjectConfig, run_dir: Path | None = None
     from transformers import AutoModelForImageTextToText
 
     dtype = _dtype_for_config(config)
+    LOGGER.info("Loading evaluation model %s", config.model.base_model_name)
     model = AutoModelForImageTextToText.from_pretrained(
         config.model.base_model_name,
         device_map="auto" if torch.cuda.is_available() else None,
@@ -82,7 +91,9 @@ def load_model_for_evaluation(config: ProjectConfig, run_dir: Path | None = None
     if run_dir is not None and (run_dir / "adapter").exists():
         from peft import PeftModel
 
+        LOGGER.info("Loading adapter weights from %s", run_dir / "adapter")
         model = PeftModel.from_pretrained(model, run_dir / "adapter")
     processor = load_processor(config)
     model.eval()
+    LOGGER.info("Finished loading evaluation model and processor")
     return model, processor
