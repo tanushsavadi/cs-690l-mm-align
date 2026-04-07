@@ -329,10 +329,10 @@ def materialize_preference_preview(
     config: ProjectConfig,
     output_path: Path,
 ) -> None:
+    import torch
     from torch.utils.data import DataLoader
 
-    preview_records = frame.iloc[: min(64, len(frame))].to_dict(orient="records")
-    if not preview_records:
+    def write_empty_preview() -> None:
         pd.DataFrame(
             columns=[
                 "sample_id",
@@ -344,9 +344,14 @@ def materialize_preference_preview(
                 "mismatched_margin",
             ]
         ).to_parquet(output_path, index=False)
+
+    preview_limit = 8 if config.training.subset_name == "smoke" else 16
+    preview_records = frame.iloc[: min(preview_limit, len(frame))].to_dict(orient="records")
+    if not preview_records:
+        write_empty_preview()
         return
 
-    raw_loader = DataLoader(preview_records, batch_size=4, shuffle=False, collate_fn=lambda batch: batch)
+    raw_loader = DataLoader(preview_records, batch_size=1, shuffle=False, collate_fn=lambda batch: batch)
     matched_collator = PathAwareVisionPreferenceCollator(
         processor=processor,
         max_length=config.training.max_length,
@@ -360,19 +365,35 @@ def materialize_preference_preview(
     )
 
     rows: list[dict[str, Any]] = []
-    for examples in raw_loader:
-        matched = _dpo_components(model, ref_model, matched_collator(examples), beta=config.training.beta)
-        mismatched = _dpo_components(model, ref_model, mismatched_collator(examples), beta=config.training.beta)
-        for index, example in enumerate(examples):
-            rows.append(
-                {
-                    "sample_id": example["sample_id"],
-                    "image_path": example["image_path"],
-                    "prompt": example["prompt"],
-                    "chosen": example["chosen"],
-                    "rejected": example["rejected"],
-                    "matched_margin": float(matched["normalized_margin"][index].detach().cpu()),
-                    "mismatched_margin": float(mismatched["normalized_margin"][index].detach().cpu()),
-                }
-            )
+    model.eval()
+    ref_model.eval()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    try:
+        with torch.inference_mode():
+            for examples in raw_loader:
+                matched = _dpo_components(model, ref_model, matched_collator(examples), beta=config.training.beta)
+                mismatched = _dpo_components(model, ref_model, mismatched_collator(examples), beta=config.training.beta)
+                for index, example in enumerate(examples):
+                    rows.append(
+                        {
+                            "sample_id": example["sample_id"],
+                            "image_path": example["image_path"],
+                            "prompt": example["prompt"],
+                            "chosen": example["chosen"],
+                            "rejected": example["rejected"],
+                            "matched_margin": float(matched["normalized_margin"][index].detach().cpu()),
+                            "mismatched_margin": float(mismatched["normalized_margin"][index].detach().cpu()),
+                        }
+                    )
+    except RuntimeError as exc:
+        if "out of memory" not in str(exc).lower():
+            raise
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        print("[preference-preview] skipped due to CUDA OOM; writing empty preview artifact", flush=True)
+        write_empty_preview()
+        return
+
     pd.DataFrame(rows).to_parquet(output_path, index=False)
