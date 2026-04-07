@@ -31,13 +31,16 @@ Run training on a CUDA-backed environment such as Google Colab Pro:
 ```bash
 bash scripts/colab_setup.sh
 bash scripts/colab_smoke_run.sh
-# after smoke succeeds:
+# after smoke succeeds, use the reduced T4-safe pilot:
 python -m mm_align.cli prepare-data --config configs/pilot.yaml
 python -m mm_align.cli train-dpo --config configs/pilot.yaml
 python -m mm_align.cli train-imgaware --config configs/pilot.yaml
 python -m mm_align.cli evaluate --config configs/pilot.yaml --run 2026-04-06-standard_dpo-pilot-7
 python -m mm_align.cli build-dashboard-data --run 2026-04-06-standard_dpo-pilot-7
 ```
+
+If you have a stronger GPU or a more reliable runtime, `configs/pilot_full.yaml`
+preserves the original larger pilot configuration.
 
 Launch the dashboard locally:
 

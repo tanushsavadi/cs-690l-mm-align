@@ -14,7 +14,9 @@ Use Google Colab Pro for all training and bulk evaluation runs.
 !bash scripts/colab_smoke_run.sh
 ```
 
-5. Only after both smoke runs pass, move to pilot:
+5. Only after both smoke runs pass, move to pilot. The default `pilot.yaml`
+   is a reduced Colab-T4-safe pilot. Use `pilot_full.yaml` only on a stronger
+   GPU or more reliable runtime:
 
 ```python
 !python -m mm_align.cli prepare-data --config configs/pilot.yaml
