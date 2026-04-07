@@ -15,13 +15,21 @@ Use Google Colab Pro for all training and bulk evaluation runs.
 ```
 
 5. Only after both smoke runs pass, move to pilot. The default `pilot.yaml`
-   is a reduced Colab-T4-safe pilot. Use `pilot_full.yaml` only on a stronger
-   GPU or more reliable runtime:
+   is the full pilot configuration. If you are on a T4 or an unstable runtime,
+   use `pilot_t4.yaml` instead:
 
 ```python
 !python -m mm_align.cli prepare-data --config configs/pilot.yaml
 !python -m mm_align.cli train-dpo --config configs/pilot.yaml
 !python -m mm_align.cli train-imgaware --config configs/pilot.yaml
+```
+
+Reduced T4-safe fallback:
+
+```python
+!python -m mm_align.cli prepare-data --config configs/pilot_t4.yaml
+!python -m mm_align.cli train-dpo --config configs/pilot_t4.yaml
+!python -m mm_align.cli train-imgaware --config configs/pilot_t4.yaml
 ```
 
 6. Evaluate each finished pilot run and build dashboard artifacts:
