@@ -4,7 +4,7 @@ import torch
 import pandas as pd
 from PIL import Image
 
-from mm_align.training.collators import PathAwareVisionPreferenceCollator
+from mm_align.training.collators import PathAwareVisionPreferenceCollator, _processor_call
 from mm_align.training.datasets import frame_to_hf_dataset
 from mm_align.training.image_aware import _slice_batch
 
@@ -14,6 +14,9 @@ class _MockProcessor:
         pad_token_id = 0
 
     tokenizer = _Tokenizer()
+
+    def __init__(self) -> None:
+        self.last_call_kwargs = None
 
     def apply_chat_template(self, messages, add_generation_prompt=False, tokenize=False):
         parts = []
@@ -32,6 +35,12 @@ class _MockProcessor:
         return " ".join(parts)
 
     def __call__(self, text, images, padding=True, return_tensors="pt", max_length=None, truncation=False):
+        self.last_call_kwargs = {
+            "padding": padding,
+            "return_tensors": return_tensors,
+            "max_length": max_length,
+            "truncation": truncation,
+        }
         tokenized = []
         for index, item in enumerate(text):
             tokens = list(range(1, len(item.split()) + 1))
@@ -128,3 +137,14 @@ def test_slice_batch_respects_qwen_flattened_pixel_values() -> None:
     assert rejected["sample_id"] == []
     assert chosen["pixel_values"].shape[0] == 8
     assert rejected["pixel_values"].shape[0] == 8
+
+
+def test_processor_call_never_truncates_multimodal_sequences() -> None:
+    processor = _MockProcessor()
+    image = Image.new("RGB", (8, 8), color=(255, 255, 255))
+
+    _processor_call(processor, ["<image> describe this"], [image], max_length=128)
+
+    assert processor.last_call_kwargs is not None
+    assert processor.last_call_kwargs["max_length"] is None
+    assert processor.last_call_kwargs["truncation"] is False

@@ -54,9 +54,8 @@ def _processor_call(
         "padding": True,
         "return_tensors": "pt",
     }
-    if max_length is not None:
-        kwargs["max_length"] = max_length
-        kwargs["truncation"] = True
+    # Qwen2.5-VL requires the multimodal placeholders to remain intact. Truncating
+    # processor outputs can desynchronize image tokens from the visual features.
     return processor(**kwargs)
 
 

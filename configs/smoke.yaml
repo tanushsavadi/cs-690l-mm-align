@@ -40,6 +40,8 @@ model:
   processor_name: null
   trust_remote_code: false
   attn_implementation: sdpa
+  min_pixels: 200704
+  max_pixels: 401408
   max_new_tokens: 96
 
 lora:
@@ -60,7 +62,7 @@ training:
   weight_decay: 0.01
   warmup_ratio: 0.03
   num_train_epochs: 1.0
-  max_length: 1024
+  max_length: null
   gradient_checkpointing: true
   precision: bf16
   beta: 0.1
