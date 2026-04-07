@@ -47,9 +47,17 @@ def _slice_batch(batch: dict[str, Any], start: int, end: int) -> dict[str, Any]:
     import torch
 
     sliced: dict[str, Any] = {}
+    pixel_start = None
+    pixel_end = None
+    if "image_grid_thw" in batch and isinstance(batch["image_grid_thw"], torch.Tensor):
+        patch_counts = batch["image_grid_thw"].prod(dim=1).tolist()
+        pixel_start = int(sum(patch_counts[:start]))
+        pixel_end = int(sum(patch_counts[:end]))
     for key, value in batch.items():
         if key == "sample_id":
             sliced[key] = value[start:end]
+        elif key == "pixel_values" and isinstance(value, torch.Tensor) and pixel_start is not None and pixel_end is not None:
+            sliced[key] = value[pixel_start:pixel_end]
         elif isinstance(value, torch.Tensor):
             sliced[key] = value[start:end]
     return sliced

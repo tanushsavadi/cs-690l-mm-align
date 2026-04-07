@@ -6,6 +6,7 @@ from PIL import Image
 
 from mm_align.training.collators import PathAwareVisionPreferenceCollator
 from mm_align.training.datasets import frame_to_hf_dataset
+from mm_align.training.image_aware import _slice_batch
 
 
 class _MockProcessor:
@@ -108,3 +109,22 @@ def test_frame_to_hf_dataset_can_materialize_images(tmp_path: Path) -> None:
     record = dataset[0]
     assert "images" in record
     assert record["prompt"] == "Describe the chart"
+
+
+def test_slice_batch_respects_qwen_flattened_pixel_values() -> None:
+    batch = {
+        "sample_id": ["sample-1", "sample-2"],
+        "input_ids": torch.tensor([[1, 2], [3, 4], [5, 6], [7, 8]], dtype=torch.long),
+        "attention_mask": torch.tensor([[1, 1], [1, 1], [1, 1], [1, 1]], dtype=torch.long),
+        "completion_mask": torch.tensor([[0, 1], [0, 1], [0, 1], [0, 1]], dtype=torch.long),
+        "image_grid_thw": torch.tensor([[1, 2, 2], [1, 2, 2], [1, 2, 2], [1, 2, 2]], dtype=torch.long),
+        "pixel_values": torch.arange(16 * 3, dtype=torch.float32).reshape(16, 3),
+    }
+
+    chosen = _slice_batch(batch, 0, 2)
+    rejected = _slice_batch(batch, 2, 4)
+
+    assert chosen["sample_id"] == ["sample-1", "sample-2"]
+    assert rejected["sample_id"] == []
+    assert chosen["pixel_values"].shape[0] == 8
+    assert rejected["pixel_values"].shape[0] == 8
