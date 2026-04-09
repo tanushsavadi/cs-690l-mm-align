@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -28,21 +29,43 @@ def run_evaluation(config: ProjectConfig, run_id: str) -> None:
     model, processor = load_model_for_evaluation(config, run_dir if run_dir.exists() and model_variant != "base" else None)
 
     rows: list[dict[str, Any]] = []
+    skipped_predictions = 0
     for benchmark_name, frame in _load_benchmark_frames(config).items():
         if frame.empty:
             continue
-        for record in frame.to_dict(orient="records"):
+        records = frame.to_dict(orient="records")
+        logging.info(
+            "Evaluating benchmark %s with %s samples and %s image variants",
+            benchmark_name,
+            len(records),
+            len(config.evaluation.dependence_variants),
+        )
+        progress_every = max(1, len(records) // 10)
+        for index, record in enumerate(records, start=1):
+            if index == 1 or index % progress_every == 0 or index == len(records):
+                logging.info("Evaluation progress for %s: %s/%s samples", benchmark_name, index, len(records))
             for image_variant in config.evaluation.dependence_variants:
-                prediction = generate_prediction(
-                    model=model,
-                    processor=processor,
-                    prompt=record["prompt"],
-                    image_variant=image_variant,
-                    image_path=record["image_path"],
-                    mismatch_image_path=record.get("mismatch_image_path"),
-                    max_new_tokens=config.model.max_new_tokens,
-                    blank_size=config.evaluation.blank_image_size,
-                )
+                try:
+                    prediction = generate_prediction(
+                        model=model,
+                        processor=processor,
+                        prompt=record["prompt"],
+                        image_variant=image_variant,
+                        image_path=record["image_path"],
+                        mismatch_image_path=record.get("mismatch_image_path"),
+                        max_new_tokens=config.model.max_new_tokens,
+                        blank_size=config.evaluation.blank_image_size,
+                    )
+                except OSError as error:
+                    skipped_predictions += 1
+                    logging.warning(
+                        "Skipping %s sample %s variant %s because the image could not be read: %s",
+                        benchmark_name,
+                        record["sample_id"],
+                        image_variant,
+                        error,
+                    )
+                    continue
                 is_correct = _score_prediction(benchmark_name, prediction, record["ground_truth"])
                 rows.append(
                     {
@@ -66,6 +89,8 @@ def run_evaluation(config: ProjectConfig, run_id: str) -> None:
 
     dependence_frame = build_dependence_summary(prediction_frame)
     metrics = aggregate_metrics(prediction_frame)
+    if skipped_predictions:
+        logging.warning("Skipped %s benchmark predictions due to unreadable images", skipped_predictions)
 
     existing_metrics = read_json(run_paths.metrics_path) if run_paths.metrics_path.exists() else {}
     existing_metrics["evaluation"] = metrics
