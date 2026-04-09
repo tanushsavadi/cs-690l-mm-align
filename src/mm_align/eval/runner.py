@@ -172,8 +172,8 @@ def generate_prediction(
     inputs = processor(text=[rendered], images=[image], return_tensors="pt", padding=True)
     device = next(model.parameters()).device
     inputs = {key: value.to(device) if hasattr(value, "to") else value for key, value in inputs.items()}
-    with torch.no_grad():
-        generated_ids = model.generate(**inputs, max_new_tokens=max_new_tokens)
+    with torch.inference_mode():
+        generated_ids = model.generate(**inputs, max_new_tokens=max_new_tokens, use_cache=True)
     trimmed = [output_ids[len(input_ids) :] for input_ids, output_ids in zip(inputs["input_ids"], generated_ids)]
     decoded = processor.batch_decode(trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
     return decoded[0].strip()
