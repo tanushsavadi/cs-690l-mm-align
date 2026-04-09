@@ -18,18 +18,27 @@ from mm_align.eval.metrics import (
 )
 from mm_align.training.modeling import load_model_for_evaluation
 from mm_align.utils.images import load_image, make_blank_image
-from mm_align.utils.io import read_json, write_jsonl
+from mm_align.utils.io import read_json, read_jsonl, write_jsonl
 
 
 def run_evaluation(config: ProjectConfig, run_id: str) -> None:
     run_dir = config.runtime.artifacts_dir / run_id
     model_variant = _infer_model_variant(run_id)
     run_paths = ensure_run_paths(config.runtime.artifacts_dir, run_id)
+    model = None
+    processor = None
+    used_cached_predictions_only = True
 
-    model, processor = load_model_for_evaluation(config, run_dir if run_dir.exists() and model_variant != "base" else None)
-
-    rows: list[dict[str, Any]] = []
+    rows = _load_existing_prediction_rows(run_paths.predictions_path)
+    completed_predictions = {
+        (row["benchmark"], row["sample_id"], row["image_variant"])
+        for row in rows
+    }
+    if rows:
+        logging.info("Resuming evaluation for %s with %s cached predictions", run_id, len(rows))
     skipped_predictions = 0
+    new_predictions = 0
+    checkpoint_interval = 512
     for benchmark_name, frame in _load_benchmark_frames(config).items():
         if frame.empty:
             continue
@@ -45,6 +54,15 @@ def run_evaluation(config: ProjectConfig, run_id: str) -> None:
             if index == 1 or index % progress_every == 0 or index == len(records):
                 logging.info("Evaluation progress for %s: %s/%s samples", benchmark_name, index, len(records))
             for image_variant in config.evaluation.dependence_variants:
+                cache_key = (benchmark_name, record["sample_id"], image_variant)
+                if cache_key in completed_predictions:
+                    continue
+                if model is None or processor is None:
+                    model, processor = load_model_for_evaluation(
+                        config,
+                        run_dir if run_dir.exists() and model_variant != "base" else None,
+                    )
+                    used_cached_predictions_only = False
                 try:
                     prediction = generate_prediction(
                         model=model,
@@ -66,27 +84,34 @@ def run_evaluation(config: ProjectConfig, run_id: str) -> None:
                         error,
                     )
                     continue
-                is_correct = _score_prediction(benchmark_name, prediction, record["ground_truth"])
                 rows.append(
-                    {
-                        "run_id": run_id,
-                        "model_variant": model_variant,
-                        "benchmark": benchmark_name,
-                        "sample_id": record["sample_id"],
-                        "prompt": record["prompt"],
-                        "ground_truth": record["ground_truth"],
-                        "image_path": record["image_path"],
-                        "metadata": record["metadata"],
-                        "image_variant": image_variant,
-                        "prediction": prediction,
-                        "is_correct": bool(is_correct),
-                    }
+                    _prediction_row(
+                        run_id=run_id,
+                        model_variant=model_variant,
+                        benchmark=benchmark_name,
+                        record=record,
+                        image_variant=image_variant,
+                        prediction=prediction,
+                    )
                 )
+                completed_predictions.add(cache_key)
+                new_predictions += 1
+                if new_predictions % checkpoint_interval == 0:
+                    logging.info("Checkpointing %s accumulated predictions for %s", len(rows), run_id)
+                    write_jsonl(run_paths.predictions_path, rows)
 
     prediction_frame = pd.DataFrame(rows)
     if prediction_frame.empty:
         raise RuntimeError("No benchmark predictions were produced. Check that processed benchmark parquet files exist.")
+    if used_cached_predictions_only and rows:
+        logging.info("Using cached predictions for %s; skipping model generation", run_id)
 
+    if "is_correct" in prediction_frame.columns:
+        prediction_frame["is_correct"] = prediction_frame.apply(
+            lambda row: _score_prediction(str(row["benchmark"]), str(row["prediction"]), str(row["ground_truth"])),
+            axis=1,
+        )
+    rows = prediction_frame.to_dict(orient="records")
     dependence_frame = build_dependence_summary(prediction_frame)
     metrics = aggregate_metrics(prediction_frame)
     if skipped_predictions:
@@ -98,6 +123,35 @@ def run_evaluation(config: ProjectConfig, run_id: str) -> None:
     write_jsonl(run_paths.predictions_path, rows)
     if not dependence_frame.empty:
         write_jsonl(run_paths.dependence_path, dependence_frame.to_dict(orient="records"))
+
+
+def _prediction_row(
+    run_id: str,
+    model_variant: str,
+    benchmark: str,
+    record: dict[str, Any],
+    image_variant: str,
+    prediction: str,
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "model_variant": model_variant,
+        "benchmark": benchmark,
+        "sample_id": record["sample_id"],
+        "prompt": record["prompt"],
+        "ground_truth": record["ground_truth"],
+        "image_path": record["image_path"],
+        "metadata": record["metadata"],
+        "image_variant": image_variant,
+        "prediction": prediction,
+        "is_correct": False,
+    }
+
+
+def _load_existing_prediction_rows(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    return read_jsonl(path)
 
 
 def generate_prediction(

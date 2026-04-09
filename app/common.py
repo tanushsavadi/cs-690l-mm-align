@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-ARTIFACTS_DIR = REPO_ROOT / "artifacts" / "runs"
+ARTIFACTS_DIR = Path(os.getenv("MM_ALIGN_ARTIFACTS_DIR", REPO_ROOT / "artifacts" / "runs")).resolve()
 
 
 def init_state() -> None:

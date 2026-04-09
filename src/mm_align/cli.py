@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 from pathlib import Path
 
 from mm_align.config import load_config
@@ -31,7 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
     dashboard.add_argument("--run", required=True, help="Run ID to materialize.")
     dashboard.add_argument(
         "--artifacts-dir",
-        default="artifacts/runs",
+        default=os.getenv("MM_ALIGN_ARTIFACTS_DIR", "artifacts/runs"),
         help="Artifact base directory.",
     )
     return parser

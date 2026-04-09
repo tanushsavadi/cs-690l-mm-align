@@ -5,7 +5,7 @@ from PIL import Image
 
 from mm_align.config import ProjectConfig
 from mm_align.eval.runner import run_evaluation
-from mm_align.utils.io import read_json, read_jsonl
+from mm_align.utils.io import read_json, read_jsonl, write_jsonl
 from mm_align.utils.images import load_image
 
 
@@ -85,3 +85,68 @@ def test_run_evaluation_skips_unreadable_samples(tmp_path: Path, monkeypatch) ->
     assert all(row["sample_id"] == "good" for row in predictions)
     assert len(predictions) == 3
     assert metrics["evaluation"]["benchmarks"]["hallusionbench"]["accuracy"] == 1.0
+
+
+def test_run_evaluation_reuses_cached_predictions_without_loading_model(tmp_path: Path, monkeypatch) -> None:
+    config = ProjectConfig.model_validate(
+        {
+            "runtime": {
+                "raw_dir": str(tmp_path / "raw"),
+                "processed_dir": str(tmp_path / "processed"),
+                "artifacts_dir": str(tmp_path / "artifacts"),
+            }
+        }
+    )
+    run_id = "2026-04-09-standard_dpo-pilot-7"
+    run_dir = config.runtime.artifacts_dir / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    frame = pd.DataFrame(
+        [
+            {
+                "sample_id": "pope-1",
+                "prompt": "Is there a snowboard in the image?",
+                "ground_truth": "yes",
+                "image_path": "good.png",
+                "mismatch_image_path": "other.png",
+                "metadata": '{"variant":"adversarial"}',
+            }
+        ]
+    )
+    write_jsonl(
+        run_dir / "predictions.jsonl",
+        [
+            {
+                "run_id": run_id,
+                "model_variant": "standard_dpo",
+                "benchmark": "pope",
+                "sample_id": "pope-1",
+                "prompt": "Is there a snowboard in the image?",
+                "ground_truth": "yes",
+                "image_path": "good.png",
+                "metadata": '{"variant":"adversarial"}',
+                "image_variant": variant,
+                "prediction": "Yes, there is a snowboard in the image.",
+                "is_correct": False,
+            }
+            for variant in ("original", "blank-image", "mismatched-image")
+        ],
+    )
+
+    monkeypatch.setattr("mm_align.eval.runner._load_benchmark_frames", lambda config: {"pope": frame})
+
+    def fail_load_model(config, adapter_dir):
+        raise AssertionError("evaluation should not reload the model when predictions are already cached")
+
+    monkeypatch.setattr("mm_align.eval.runner.load_model_for_evaluation", fail_load_model)
+
+    run_evaluation(config, run_id)
+
+    predictions = read_jsonl(run_dir / "predictions.jsonl")
+    metrics = read_json(run_dir / "metrics.json")
+    dependence = read_jsonl(run_dir / "dependence.jsonl")
+
+    assert len(predictions) == 3
+    assert all(row["is_correct"] for row in predictions)
+    assert metrics["evaluation"]["benchmarks"]["pope"]["accuracy"] == 1.0
+    assert len(dependence) == 1
