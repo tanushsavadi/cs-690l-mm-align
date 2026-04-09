@@ -18,6 +18,14 @@ def normalize_yes_no(value: Any) -> str:
         return "yes"
     if text in {"0", "false", "no"}:
         return "no"
+    if re.match(r"^(yes|yeah|yep|true)\b", text):
+        return "yes"
+    if re.match(r"^(no|nope|false)\b", text):
+        return "no"
+    if re.match(r"^(there\s+(?:is|are)\s+no|there\s+(?:is|are)\s+not|there\s+(?:isn't|aren't))\b", text):
+        return "no"
+    if re.match(r"^(there\s+(?:is|are))\b", text):
+        return "yes"
     return text
 
 
@@ -133,7 +141,7 @@ def tag_failure(row: pd.Series) -> str:
     if not bool(row.get("is_correct_original", True)):
         prediction = normalize_text(row.get("prediction_original", ""))
         gt = normalize_text(row.get("ground_truth", ""))
-        if row.get("benchmark") == "pope" and prediction == "yes" and gt == "no":
+        if row.get("benchmark") == "pope" and normalize_yes_no(prediction) == "yes" and normalize_yes_no(gt) == "no":
             return "unsupported_object_mention"
         if row.get("mismatch_changed") and row.get("mismatch_score_drop", 0) > 0:
             return "image_dependence_regression"
