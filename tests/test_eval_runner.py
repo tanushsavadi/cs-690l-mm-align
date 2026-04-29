@@ -150,3 +150,71 @@ def test_run_evaluation_reuses_cached_predictions_without_loading_model(tmp_path
     assert all(row["is_correct"] for row in predictions)
     assert metrics["evaluation"]["benchmarks"]["pope"]["accuracy"] == 1.0
     assert len(dependence) == 1
+
+
+def test_run_evaluation_resume_distinguishes_duplicate_sample_ids(tmp_path: Path, monkeypatch) -> None:
+    config = ProjectConfig.model_validate(
+        {
+            "runtime": {
+                "raw_dir": str(tmp_path / "raw"),
+                "processed_dir": str(tmp_path / "processed"),
+                "artifacts_dir": str(tmp_path / "artifacts"),
+            }
+        }
+    )
+    run_id = "2026-04-09-image_aware_dpo-pilot-7"
+    run_dir = config.runtime.artifacts_dir / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    frame = pd.DataFrame(
+        [
+            {
+                "sample_id": "hallusionbench-0",
+                "prompt": "First question?",
+                "ground_truth": "yes",
+                "image_path": "image-1.png",
+                "mismatch_image_path": "",
+                "metadata": '{"figure_id":"0"}',
+            },
+            {
+                "sample_id": "hallusionbench-0",
+                "prompt": "Second question?",
+                "ground_truth": "no",
+                "image_path": "image-2.png",
+                "mismatch_image_path": "",
+                "metadata": '{"figure_id":"1"}',
+            },
+        ]
+    )
+    write_jsonl(
+        run_dir / "predictions.jsonl",
+        [
+            {
+                "run_id": run_id,
+                "model_variant": "image_aware_dpo",
+                "benchmark": "hallusionbench",
+                "sample_id": "hallusionbench-0",
+                "prompt": "First question?",
+                "ground_truth": "yes",
+                "image_path": "image-1.png",
+                "metadata": '{"figure_id":"0"}',
+                "image_variant": variant,
+                "prediction": "yes",
+                "is_correct": True,
+            }
+            for variant in ("original", "blank-image", "mismatched-image")
+        ],
+    )
+
+    monkeypatch.setattr("mm_align.eval.runner.load_model_for_evaluation", lambda config, adapter_dir: ("model", "processor"))
+    monkeypatch.setattr("mm_align.eval.runner._load_benchmark_frames", lambda config: {"hallusionbench": frame})
+    monkeypatch.setattr("mm_align.eval.runner.generate_prediction", lambda **kwargs: "no")
+
+    run_evaluation(config, run_id)
+
+    predictions = read_jsonl(run_dir / "predictions.jsonl")
+    originals = [row for row in predictions if row["image_variant"] == "original"]
+
+    assert len(predictions) == 6
+    assert len(originals) == 2
+    assert {row["prompt"] for row in originals} == {"First question?", "Second question?"}

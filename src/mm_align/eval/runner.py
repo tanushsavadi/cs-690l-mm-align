@@ -30,10 +30,7 @@ def run_evaluation(config: ProjectConfig, run_id: str) -> None:
     used_cached_predictions_only = True
 
     rows = _load_existing_prediction_rows(run_paths.predictions_path)
-    completed_predictions = {
-        (row["benchmark"], row["sample_id"], row["image_variant"])
-        for row in rows
-    }
+    completed_predictions = {_cache_key_from_row(row) for row in rows}
     if rows:
         logging.info("Resuming evaluation for %s with %s cached predictions", run_id, len(rows))
     skipped_predictions = 0
@@ -54,7 +51,7 @@ def run_evaluation(config: ProjectConfig, run_id: str) -> None:
             if index == 1 or index % progress_every == 0 or index == len(records):
                 logging.info("Evaluation progress for %s: %s/%s samples", benchmark_name, index, len(records))
             for image_variant in config.evaluation.dependence_variants:
-                cache_key = (benchmark_name, record["sample_id"], image_variant)
+                cache_key = _cache_key_from_record(benchmark_name, record, image_variant)
                 if cache_key in completed_predictions:
                     continue
                 if model is None or processor is None:
@@ -146,6 +143,30 @@ def _prediction_row(
         "prediction": prediction,
         "is_correct": False,
     }
+
+
+def _cache_key_from_record(benchmark: str, record: dict[str, Any], image_variant: str) -> tuple[str, str, str, str, str, str, str]:
+    return (
+        benchmark,
+        str(record["sample_id"]),
+        str(record["prompt"]),
+        str(record["ground_truth"]),
+        str(record["image_path"]),
+        str(record["metadata"]),
+        image_variant,
+    )
+
+
+def _cache_key_from_row(row: dict[str, Any]) -> tuple[str, str, str, str, str, str, str]:
+    return (
+        str(row["benchmark"]),
+        str(row["sample_id"]),
+        str(row["prompt"]),
+        str(row["ground_truth"]),
+        str(row["image_path"]),
+        str(row["metadata"]),
+        str(row["image_variant"]),
+    )
 
 
 def _load_existing_prediction_rows(path: Path) -> list[dict[str, Any]]:
