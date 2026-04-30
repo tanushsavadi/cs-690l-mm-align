@@ -75,8 +75,13 @@ explicit alias of the original larger pilot configuration.
 Launch the dashboard locally:
 
 ```bash
-streamlit run app/dashboard.py
+bash scripts/run_dashboard.sh
 ```
+
+If launching manually, prefer `python3 -m streamlit run app/dashboard.py`
+instead of `streamlit run app/dashboard.py`. This avoids accidentally using a
+different Homebrew Python environment from the one where the project was
+installed.
 
 ## Key Design Choices
 
