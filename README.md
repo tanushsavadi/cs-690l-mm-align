@@ -15,6 +15,32 @@ dataset is `trl-lib/rlaif-v`, while `HallusionBench`, `POPE`, and `ChartQA`
 cover evaluation and capability-retention checks. A Streamlit dashboard loads
 cached experiment artifacts and never serves live model inference.
 
+## Current Full Pilot Result
+
+The corrected full pilot comparison uses these two completed runs:
+
+- `2026-04-08-standard_dpo-pilot-7`
+- `2026-04-08-image_aware_dpo-pilot-7`
+
+Both runs finished full pilot training, full benchmark evaluation, and dashboard
+artifact generation. The final headline metrics are:
+
+| Benchmark | Metric | standard_dpo | image_aware_dpo |
+| --- | --- | ---: | ---: |
+| ChartQA | relaxed accuracy | 0.3797 | 0.4063 |
+| HallusionBench | accuracy | 0.5722 | 0.5740 |
+| POPE | accuracy | 0.8733 | 0.8718 |
+| POPE | F1 | 0.8830 | 0.8814 |
+
+The result is mixed but useful. Image-aware DPO improves ChartQA and is slightly
+higher on HallusionBench, while standard DPO is slightly higher on POPE. The
+dependence analysis also shows image-aware DPO changes answers slightly more
+often when images are blanked or mismatched. The effect is modest rather than a
+clear overall win.
+
+See `reports/final_results.md` for the corrected result table, dependence
+summary, and interpretation notes.
+
 ## Quick Start
 
 Create an environment, install the package, and prepare data:
@@ -35,8 +61,10 @@ bash scripts/colab_smoke_run.sh
 python -m mm_align.cli prepare-data --config configs/pilot.yaml
 python -m mm_align.cli train-dpo --config configs/pilot.yaml
 python -m mm_align.cli train-imgaware --config configs/pilot.yaml
-python -m mm_align.cli evaluate --config configs/pilot.yaml --run 2026-04-06-standard_dpo-pilot-7
-python -m mm_align.cli build-dashboard-data --run 2026-04-06-standard_dpo-pilot-7
+python -m mm_align.cli evaluate --config configs/pilot.yaml --run 2026-04-08-standard_dpo-pilot-7
+python -m mm_align.cli evaluate --config configs/pilot.yaml --run 2026-04-08-image_aware_dpo-pilot-7
+python -m mm_align.cli build-dashboard-data --run 2026-04-08-standard_dpo-pilot-7
+python -m mm_align.cli build-dashboard-data --run 2026-04-08-image_aware_dpo-pilot-7
 ```
 
 If you need a smaller fallback for a T4 or an unstable runtime, use
