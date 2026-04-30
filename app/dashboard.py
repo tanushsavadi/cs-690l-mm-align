@@ -9,11 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from app.common import require_run
-
 st.set_page_config(page_title="Multimodal Alignment Dashboard", layout="wide")
-
-require_run()
 
 pages_root = Path(__file__).resolve().parent / "pages"
 navigation = st.navigation(

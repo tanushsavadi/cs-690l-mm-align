@@ -8,6 +8,7 @@ import streamlit as st
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ARTIFACTS_DIR = Path(os.getenv("MM_ALIGN_ARTIFACTS_DIR", REPO_ROOT / "artifacts" / "runs")).resolve()
+COLAB_PROJECT_ROOT = "/content/drive/MyDrive/mm-align"
 
 
 def init_state() -> None:
@@ -77,3 +78,30 @@ def require_run() -> str | None:
         st.warning("No run selected.")
         return None
     return run_id
+
+
+def resolve_dashboard_image_path(image_path: object) -> Path | None:
+    if image_path is None or pd.isna(image_path):
+        return None
+    path_text = str(image_path)
+    candidates = [Path(path_text).expanduser()]
+    if path_text.startswith(COLAB_PROJECT_ROOT):
+        candidates.append(REPO_ROOT / path_text.removeprefix(COLAB_PROJECT_ROOT).lstrip("/"))
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def render_dashboard_image(image_path: object, caption: object) -> None:
+    resolved = resolve_dashboard_image_path(image_path)
+    if resolved is None:
+        st.warning("Image file is not available on this machine.")
+        if image_path is not None and not pd.isna(image_path):
+            st.caption(str(image_path))
+        return
+    try:
+        st.image(str(resolved), caption=str(caption), width="stretch")
+    except Exception as exc:
+        st.warning(f"Could not render image: {exc}")
+        st.caption(str(resolved))

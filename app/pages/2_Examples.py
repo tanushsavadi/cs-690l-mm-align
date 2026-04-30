@@ -10,7 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from app.common import load_examples, require_run
+from app.common import load_examples, render_dashboard_image, require_run
 
 st.title("Examples")
 run_id = require_run()
@@ -44,7 +44,7 @@ st.dataframe(
             "prediction_original",
         ]
     ],
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
 )
 
@@ -56,7 +56,7 @@ if not selected_sample:
 row = filtered[filtered["sample_id"] == selected_sample].iloc[0]
 image_col, text_col = st.columns([1, 2])
 with image_col:
-    st.image(row["image_path"], caption=row["sample_id"], use_container_width=True)
+    render_dashboard_image(row.get("image_path"), row.get("sample_id", "sample"))
 with text_col:
     st.markdown(f"**Prompt**\n\n{row['prompt']}")
     st.markdown(f"**Ground Truth**\n\n{row['ground_truth']}")

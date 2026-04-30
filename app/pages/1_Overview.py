@@ -33,8 +33,8 @@ if not metrics.empty:
         column.metric(label=f"{row['benchmark']}:{row['metric']}", value=f"{row['value']:.3f}")
 
 st.subheader("Metric Table")
-st.dataframe(view, use_container_width=True, hide_index=True)
+st.dataframe(view, width="stretch", hide_index=True)
 
 st.subheader("Metric Chart")
 figure = px.bar(view, x="metric", y="value", color="benchmark", barmode="group")
-st.plotly_chart(figure, use_container_width=True, theme="streamlit")
+st.plotly_chart(figure, theme="streamlit")

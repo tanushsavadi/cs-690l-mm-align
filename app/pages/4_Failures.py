@@ -30,7 +30,6 @@ if failures.empty:
 counts = failures.groupby(["benchmark", "failure_tag"]).size().reset_index(name="count")
 st.plotly_chart(
     px.bar(counts, x="failure_tag", y="count", color="benchmark", barmode="group"),
-    use_container_width=True,
     theme="streamlit",
 )
-st.dataframe(failures, use_container_width=True, hide_index=True)
+st.dataframe(failures, width="stretch", hide_index=True)
