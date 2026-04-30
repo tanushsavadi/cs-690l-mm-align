@@ -1,0 +1,441 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=1.25em}
+\setlength{\parskip}{0.55em}
+\setlength{\parindent}{0pt}
+
+\title{Final Report\\Multimodal Hallucination Alignment}
+\author{Tanush Savadi}
+\date{April 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Abstract}
+This project studies whether image aware preference tuning can make a vision language model less likely to hallucinate.
+The base model is Qwen2.5-VL-3B-Instruct.
+I compare two fine tuned versions of the same model.
+The first one uses standard DPO.
+The second one uses an image aware DPO objective.
+
+The main idea is that a good multimodal model should not only give a fluent answer.
+It should give an answer that is supported by the image.
+So I evaluate the models on normal images, blank images, and mismatched images.
+I also evaluate them on HallusionBench, POPE, and ChartQA.
+
+The final result is mixed but useful.
+Image aware DPO improves ChartQA and is slightly better on HallusionBench.
+Standard DPO is slightly better on POPE.
+The image aware model also changes its answers a bit more often when images are blanked or mismatched.
+So the hypothesis is partly supported, but the gains are modest.
+
+\section*{1. Introduction}
+Large vision language models can answer questions about images.
+But they can also hallucinate.
+In this project, hallucination means the model says something that is not supported by the image.
+This is a problem because the answer can sound confident even when it is wrong.
+
+The goal of this project is to test whether a model can be made more grounded in the image through preference optimization.
+I use the word grounded to mean that the model answer depends on the actual image in a useful way.
+
+The project compares two training methods.
+The first method is standard DPO.
+The second method is image aware DPO.
+Both use the same base model and the same training data.
+The difference is in the training objective.
+
+My main research question is:
+
+\begin{quote}
+Does image aware DPO improve visual grounding and reduce hallucination compared with standard DPO.
+\end{quote}
+
+My hypothesis was that image aware DPO would help.
+I expected it to improve performance when the answer depends strongly on the image.
+I also expected it to make the model more sensitive to image changes.
+
+\section*{2. Background}
+DPO stands for Direct Preference Optimization.
+It is a way to fine tune a model using preference pairs.
+Each example has a prompt, a chosen answer, and a rejected answer.
+The model learns to prefer the chosen answer.
+
+For a vision language model, the prompt also includes an image.
+This creates an extra issue.
+The better answer should be better because it matches the image, not just because it sounds better.
+
+Standard DPO does not directly test this.
+It can learn that one answer sounds more preferred than another answer.
+But it may not fully learn whether the answer is supported by the visual input.
+
+The image aware version tries to add this missing pressure.
+It compares behavior with the correct image and with a mismatched image.
+The goal is to reward preferences that depend on the right image.
+
+In simple terms:
+
+\begin{itemize}
+    \item standard DPO says, prefer the better answer
+    \item image aware DPO says, prefer the better answer when the image actually supports it
+\end{itemize}
+
+\section*{3. System Overview}
+The project is built as an end to end experiment pipeline.
+It has four main parts.
+
+\begin{itemize}
+    \item data preparation
+    \item model training
+    \item benchmark evaluation
+    \item dashboard and analysis artifacts
+\end{itemize}
+
+The code prepares data into one shared format.
+Each example has a sample id, an image path, a prompt, a ground truth answer, metadata, and a mismatched image path.
+This makes it easier to use the same evaluation code across multiple benchmarks.
+
+The training pipeline creates LoRA adapters for Qwen2.5-VL-3B-Instruct.
+I do not train the whole model from scratch.
+This is important because full multimodal training would be too expensive for this class project.
+
+The evaluation pipeline saves predictions and dependence results to Google Drive.
+This was important because the runs were long and Colab sessions were not always stable.
+The dashboard reads those saved artifacts.
+It does not run live model inference.
+
+\section*{4. Data}
+The preference training data comes from \texttt{trl-lib/rlaif-v}.
+The full pilot uses 8000 training examples and 1000 validation examples.
+
+For evaluation I use three benchmarks.
+
+\begin{itemize}
+    \item HallusionBench
+    \item POPE
+    \item ChartQA
+\end{itemize}
+
+HallusionBench is used to test multimodal hallucination.
+POPE is used for object existence questions.
+ChartQA is used to test chart based visual question answering.
+
+For each evaluation sample, I use three image variants.
+
+\begin{itemize}
+    \item original image
+    \item blank image
+    \item mismatched image
+\end{itemize}
+
+This lets me measure both benchmark accuracy and image dependence.
+If the model gives the same answer after the image is blanked or swapped, that may mean it is not really using the image.
+If the answer changes, that means the model is at least sensitive to the image.
+But changing the answer is not always enough.
+The changed answer also needs to be useful.
+
+\section*{5. Methods}
+\subsection*{Standard DPO}
+The standard DPO model is trained on normal preference pairs.
+For each image and prompt, the model learns to prefer the chosen response over the rejected response.
+
+This is the baseline alignment method.
+It tells us what happens when we fine tune the model with preference data but do not add the extra image aware term.
+
+\subsection*{Image Aware DPO}
+The image aware DPO model uses the same preference data, but it also considers a mismatched image.
+The model is encouraged to separate the matched image case from the mismatched image case.
+
+The goal is to make the model less likely to prefer an answer when the image does not support it.
+This should make the model more visually grounded.
+
+The image aware objective has an extra gap term.
+This makes training noisier, but it is the part that tries to enforce image dependence.
+
+\section*{6. Experiment Setup}
+The main full pilot setup was:
+
+\begin{itemize}
+    \item base model: Qwen2.5-VL-3B-Instruct
+    \item training examples: 8000
+    \item validation examples: 1000
+    \item optimizer steps: 1000
+    \item gradient accumulation steps: 8
+    \item training method 1: standard DPO
+    \item training method 2: image aware DPO
+\end{itemize}
+
+The two final run ids are:
+
+\begin{itemize}
+    \item \texttt{2026-04-08-standard\_dpo-pilot-7}
+    \item \texttt{2026-04-08-image\_aware\_dpo-pilot-7}
+\end{itemize}
+
+All artifacts were saved to Google Drive.
+This includes adapter weights, metrics, predictions, dependence files, and dashboard parquet files.
+
+\section*{7. Engineering Work}
+A large part of this project was getting the pipeline to run reliably.
+This was not just a small notebook experiment.
+The model is large enough that runtime and memory problems matter.
+
+Some important engineering work included:
+
+\begin{itemize}
+    \item setting up Colab GPU training
+    \item saving artifacts to Google Drive
+    \item fixing multimodal batching and image tensor issues
+    \item adding progress logs for long runs
+    \item making evaluation resumable from cached predictions
+    \item fixing POPE yes and no normalization
+    \item fixing a HallusionBench resume bug caused by duplicate sample ids
+    \item building dashboard artifacts for later inspection
+\end{itemize}
+
+The resumable evaluation was important.
+The full evaluation can take hours.
+If the runtime disconnects, it should not lose all progress.
+The final evaluator can reuse cached predictions and only generate missing ones.
+
+There was also a POPE scoring issue.
+The model often answered in full sentences like ``Yes, there is a snowboard in the image''.
+The first scorer expected only exact \texttt{yes} or \texttt{no}.
+That made early POPE results look wrong.
+I fixed this by normalizing common yes and no answer patterns.
+
+There was also a HallusionBench issue.
+Some HallusionBench rows shared the same sample id.
+The resume logic was using a cache key that was too simple.
+It skipped many image aware HallusionBench rows by mistake.
+I fixed the cache key to include the prompt, ground truth, image path, metadata, and image variant.
+After that fix, the image aware run had the full expected prediction count.
+
+\section*{8. Training Results}
+Both full pilot training runs completed.
+
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+Model & Steps & Last loss & Last DPO loss & Gap loss \\
+\midrule
+standard\_dpo & 1000 & 0.4772 & 0.4772 & -- \\
+image\_aware\_dpo & 1000 & 0.9165 & 0.7508 & 0.4220 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The standard DPO loss is lower, but this should not be over interpreted.
+The two models are trained with different objectives.
+The image aware model has extra terms, so its loss is not directly comparable to the standard DPO loss.
+
+The main point is that both training runs completed and produced usable LoRA adapters.
+The image aware gap loss also shows that the image aware part of the objective was active.
+
+\section*{9. Final Evaluation Results}
+The final evaluation used the corrected prediction files.
+The image aware run had the expected count:
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Benchmark & Original predictions \\
+\midrule
+HallusionBench & 1129 \\
+POPE & 9000 \\
+ChartQA & 1920 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The total prediction count was 36147.
+This is the sum of all benchmark samples times three image variants.
+
+\subsection*{Headline Metrics}
+\begin{center}
+\begin{tabular}{llrr}
+\toprule
+Benchmark & Metric & standard\_dpo & image\_aware\_dpo \\
+\midrule
+ChartQA & relaxed accuracy & 0.3797 & 0.4063 \\
+HallusionBench & accuracy & 0.5722 & 0.5740 \\
+POPE & accuracy & 0.8733 & 0.8718 \\
+POPE & F1 & 0.8830 & 0.8814 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+These results show a mixed outcome.
+Image aware DPO is better on ChartQA.
+It is also slightly better on HallusionBench.
+Standard DPO is slightly better on POPE.
+
+\subsection*{ChartQA}
+ChartQA is the clearest positive result for image aware DPO.
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Metric & standard\_dpo & image\_aware\_dpo \\
+\midrule
+augmented relaxed accuracy & 0.4990 & 0.5292 \\
+human relaxed accuracy & 0.2604 & 0.2833 \\
+overall relaxed accuracy & 0.3797 & 0.4063 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The image aware model improves both the augmented split and the human split.
+This suggests that the image aware objective helped on chart based visual question answering.
+
+\subsection*{HallusionBench}
+HallusionBench is almost tied, with a very small advantage for image aware DPO.
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Metric & standard\_dpo & image\_aware\_dpo \\
+\midrule
+overall accuracy & 0.5722 & 0.5740 \\
+category VD accuracy & 0.5550 & 0.5550 \\
+category VS accuracy & 0.5911 & 0.5948 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This should not be described as a large improvement.
+It is better to say that the two models are basically competitive on HallusionBench, with image aware DPO slightly higher.
+
+\subsection*{POPE}
+On POPE, standard DPO is slightly higher.
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Metric & standard\_dpo & image\_aware\_dpo \\
+\midrule
+accuracy & 0.8733 & 0.8718 \\
+precision & 0.8650 & 0.8624 \\
+recall & 0.9018 & 0.9014 \\
+F1 & 0.8830 & 0.8814 \\
+yes ratio & 0.5202 & 0.5216 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The gap is very small.
+So I would not say that standard DPO strongly wins on POPE.
+I would say image aware DPO did not improve POPE in this pilot.
+
+\section*{10. Dependence Results}
+The dependence metrics measure how much the model changes when the image is blanked or mismatched.
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Metric & standard\_dpo & image\_aware\_dpo \\
+\midrule
+blank changed rate & 0.9667 & 0.9705 \\
+mismatch changed rate & 0.9285 & 0.9361 \\
+blank score drop mean & 0.4272 & 0.4200 \\
+mismatch score drop mean & 0.3508 & 0.3508 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The image aware model changes its answers slightly more often when the image is blanked or mismatched.
+This supports the idea that it is a bit more sensitive to visual changes.
+
+But the score drop numbers are not clearly better.
+The blank score drop is slightly lower for image aware DPO.
+The mismatch score drop is the same.
+So the image aware model is more responsive, but this does not translate into a large robustness gain.
+
+\section*{11. Dashboard}
+The project also includes a Streamlit dashboard.
+The dashboard reads saved run artifacts.
+It lets me inspect benchmark metrics, prediction examples, training preferences, and failure tags.
+
+The dashboard is useful because the final result is not just one number.
+Some examples show correct image grounding.
+Other examples show fluent but wrong answers.
+Looking at examples helps explain what the metrics mean.
+
+The dashboard uses saved files like:
+
+\begin{itemize}
+    \item \texttt{metrics.json}
+    \item \texttt{predictions.jsonl}
+    \item \texttt{dependence.jsonl}
+    \item \texttt{dashboard\_examples.parquet}
+    \item \texttt{dashboard\_summary.parquet}
+\end{itemize}
+
+\section*{12. Discussion}
+The results partly support the hypothesis.
+Image aware DPO improves ChartQA and is slightly better on HallusionBench.
+It also makes the model slightly more likely to change its answer when the image changes.
+
+However, the effect is not large.
+The POPE result is slightly worse for image aware DPO.
+The dependence score drops are also not clearly better.
+So the image aware objective does not dominate standard DPO.
+
+My interpretation is that image aware DPO changed the model in the intended direction, but only modestly.
+It helped most on ChartQA.
+It did not give a clear overall win across every hallucination benchmark.
+
+This is still a useful result.
+It shows that the method has potential, but it also shows that simply adding an image mismatch term is not enough to solve multimodal hallucination.
+
+\section*{13. Limitations}
+There are several limitations.
+
+First, this is a pilot scale experiment.
+The training set is not huge.
+The results should not be treated as a large scale final claim.
+
+Second, the project depends on Colab GPU access.
+The full pipeline is slow even on stronger Colab GPUs.
+This made debugging and rerunning expensive.
+
+Third, the model is only one base model.
+The result might be different for a larger Qwen model or a different model family.
+
+Fourth, the image aware objective is simple.
+It only uses mismatched images in one way.
+A stronger method might need better negative images, better losses, or benchmark specific tuning.
+
+Fifth, automatic metrics do not capture everything.
+The dashboard and qualitative examples are still important for understanding the model behavior.
+
+\section*{14. Conclusion}
+This project built and tested an end to end multimodal alignment pipeline.
+It prepared data, trained two LoRA adapters, evaluated both models, saved artifacts, and built dashboard data.
+
+The final result is that image aware DPO gives modest gains.
+It improves ChartQA from 0.3797 to 0.4063.
+It slightly improves HallusionBench from 0.5722 to 0.5740.
+It is slightly worse on POPE, with 0.8718 accuracy compared with 0.8733 for standard DPO.
+
+The dependence analysis also shows that image aware DPO is slightly more sensitive to blank and mismatched images.
+This means the model is reacting to the image more often.
+But the improvement is small, and it does not solve hallucination by itself.
+
+So my final answer to the research question is:
+
+\begin{quote}
+Image aware DPO helps in some ways, especially on ChartQA, but it is not a complete solution.
+It gives a small grounding benefit while staying close to standard DPO on the other benchmarks.
+\end{quote}
+
+For a class project, I think this is a meaningful result.
+The system works end to end, the comparison is real, and the final conclusion is honest rather than over claimed.
+
+\end{document}

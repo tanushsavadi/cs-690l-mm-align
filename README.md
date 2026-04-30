@@ -39,7 +39,8 @@ often when images are blanked or mismatched. The effect is modest rather than a
 clear overall win.
 
 See `reports/final_results.md` for the corrected result table, dependence
-summary, and interpretation notes.
+summary, and interpretation notes. The final submission report is available at
+`reports/final_report.pdf`, with source in `reports/final_report.tex`.
 
 ## Quick Start
 
