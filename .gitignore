@@ -17,3 +17,5 @@ dist/
 *.parquet
 *.jsonl
 *.log
+*.aux
+*.out

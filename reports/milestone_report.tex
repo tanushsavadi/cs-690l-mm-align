@@ -1,0 +1,384 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=1.25em}
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+
+\title{Milestone Report\\Multimodal Hallucination Alignment Project}
+\author{Tanush Savadi}
+\date{April 9, 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Project Goal}
+The goal of this project is to study whether image aware preference optimization can reduce multimodal hallucinations better than standard DPO.
+
+I am using Qwen2.5-VL-3B-Instruct as the base model.
+I am training two aligned variants.
+The first one is a standard DPO model.
+The second one is an image aware DPO model.
+
+The main idea is simple.
+If the model is really grounded in the image then its answer should react in a reasonable way when I blank the image or swap the image.
+That is what I am trying to test.
+
+In simple words, this project is asking one main question.
+If I fine tune a vision language model in a more image sensitive way, will it stop making up answers that are not supported by the picture.
+
+\section*{Why This Project Matters}
+Multimodal models can often sound confident even when the image does not support the answer.
+That is a big problem if we want to trust them.
+It is even worse when the answer sounds fluent and reasonable, because then it becomes harder to notice the mistake.
+
+My proposal idea was to compare a standard preference learning method against a modified method that also checks whether the answer still looks good when the image is wrong.
+So the project is not only about accuracy.
+It is also about whether the model is truly using the image in a grounded way.
+
+\section*{What The Project Actually Does}
+The codebase has five main stages.
+
+\begin{itemize}
+    \item prepare the training and benchmark datasets into one clean format
+    \item train a standard DPO model
+    \item train an image aware DPO model
+    \item evaluate both models on benchmark datasets
+    \item save artifacts and later inspect them in a dashboard
+\end{itemize}
+
+The training data comes from a preference dataset.
+Each example has an image, a prompt, a chosen answer, and a rejected answer.
+So the model is learning which answer should be preferred.
+
+The standard DPO model learns in the normal way.
+It tries to prefer the chosen answer over the rejected answer.
+
+The image aware DPO model does one extra thing.
+It also looks at a mismatched image case.
+So it is not just asking whether the chosen answer is better.
+It is asking whether the chosen answer is better when the image actually matches the prompt.
+
+For evaluation, I use three benchmark datasets.
+
+\begin{itemize}
+    \item HallusionBench for multimodal hallucination checks
+    \item POPE for object existence yes and no questions
+    \item ChartQA for chart based question answering
+\end{itemize}
+
+I also evaluate each sample under three image conditions.
+
+\begin{itemize}
+    \item original image
+    \item blank image
+    \item mismatched image
+\end{itemize}
+
+This lets me check not only if the answer is correct, but also if the answer depends on the image in a meaningful way.
+
+\section*{What I Have Built So Far}
+For this milestone I built the full pipeline.
+
+\begin{itemize}
+    \item data preparation for the training set and benchmark sets
+    \item standard DPO training
+    \item image aware DPO training
+    \item benchmark evaluation on HallusionBench, POPE, and ChartQA
+    \item artifact saving to Google Drive
+    \item a Streamlit dashboard pipeline for later analysis
+\end{itemize}
+
+I also fixed a long list of engineering issues during this phase.
+These were mostly multimodal batching bugs, Qwen image tensor issues, memory problems, and Colab runtime issues.
+So one important milestone result is that the system now runs end to end at full pilot scale on remote GPU compute.
+
+\section*{Experiment Setup}
+The main full pilot config used:
+
+\begin{itemize}
+    \item train subset size: 8000
+    \item validation size: 1000
+    \item optimizer steps: 1000
+    \item gradient accumulation steps: 8
+    \item model: Qwen2.5-VL-3B-Instruct
+    \item training methods: standard DPO and image aware DPO
+    \item benchmarks: HallusionBench, POPE, and ChartQA
+\end{itemize}
+
+All long runs were saved to Google Drive so the artifacts stayed available even when the Colab session was unstable.
+
+\section*{Progress So Far}
+The project moved in stages.
+
+First I got smoke runs working.
+That gave me a small end to end sanity check for both the standard DPO and image aware DPO training paths.
+
+After that I ran a reduced pilot during debugging.
+That helped me fix practical issues without wasting a lot of Colab time.
+
+After those stages worked, I switched back to the full pilot setup on stronger GPU hardware.
+That full pilot is the main result of this milestone.
+
+\section*{Compute Bottleneck}
+One practical bottleneck in this project is runtime.
+Even when using the Colab G4 GPU, the full pipeline is still slow.
+Data preparation, full pilot training, and evaluation each take a long time.
+So the main challenge is not only getting the code to work.
+It is also making the experiments reliable enough to finish within Colab session limits.
+
+This matters for the milestone because it affects how quickly I can test changes and rerun experiments.
+It also means I have to be careful about saving artifacts to Google Drive and structuring the workflow so that partial progress is not lost if the session disconnects.
+
+\section*{Completed Runs}
+The following full pilot training runs finished successfully:
+
+\begin{itemize}
+    \item \texttt{2026-04-08-standard\_dpo-pilot-7}
+    \item \texttt{2026-04-08-image\_aware\_dpo-pilot-7}
+\end{itemize}
+
+The following artifacts were saved for both runs:
+
+\begin{itemize}
+    \item adapter weights
+    \item config file
+    \item environment file
+    \item training metrics
+    \item preference preview parquet
+\end{itemize}
+
+For the standard DPO full pilot run, the evaluation artifacts were also written.
+That means the standard baseline already has:
+
+\begin{itemize}
+    \item \texttt{predictions.jsonl}
+    \item \texttt{dependence.jsonl}
+    \item updated \texttt{metrics.json}
+\end{itemize}
+
+At the time of this milestone writeup the image aware evaluation was not fully finished yet.
+So the final side by side comparison is still pending.
+
+\section*{Training Results So Far}
+The final training summaries from the two full pilot runs are shown below.
+
+\begin{center}
+\begin{tabular}{>{\raggedright}p{2.3cm} >{\raggedright}p{4.1cm} r r r r r r r}
+\toprule
+Model & Run ID & Global Step & Opt Steps & Last Loss & Last DPO & Matched Margin & Mismatched Margin & Gap Loss \\
+\midrule
+standard\_dpo & \texttt{2026-04-08-standard\_dpo-pilot-7} & 1000 & 1000 & 0.4772 & 0.4772 & 4.9171 & -- & -- \\
+image\_aware\_dpo & \texttt{2026-04-08-image\_aware\_dpo-pilot-7} & 1000 & 1000 & 0.9165 & 0.7508 & -1.1211 & -0.7991 & 0.4220 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+I do not want to over claim from the raw training loss.
+The two objectives are not the same.
+So a lower standard DPO loss does not automatically mean it is the better model.
+Still, the curves are useful for showing that both runs completed and trained in a stable way.
+
+From the plots I made, the standard DPO run looks more numerically stable.
+The image aware run is noisier, which makes sense because it includes the extra gap term.
+The gap loss also shows that the image aware objective was active during training.
+
+The training plots support that summary.
+The standard DPO loss stayed in a tighter band and ended at a lower value.
+The image aware run had a higher and noisier loss curve.
+Its gap loss also had repeated spikes, which is expected because that model is actively trying to separate matched and mismatched image behavior.
+
+So my current interpretation is not that the standard model is automatically better.
+My interpretation is that the two models are learning different things.
+The standard model looks easier to optimize.
+The image aware model is doing a harder training job.
+
+\section*{Preliminary Evaluation Results}
+The standard DPO evaluation finished on all three benchmarks.
+The most useful current numbers are below.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Benchmark & Metric & Value \\
+\midrule
+ChartQA & relaxed accuracy & 0.3797 \\
+ChartQA & augmented relaxed accuracy & 0.4990 \\
+ChartQA & human relaxed accuracy & 0.2604 \\
+HallusionBench & overall accuracy & 0.0177 \\
+HallusionBench & illusion accuracy & 0.0417 \\
+HallusionBench & video accuracy & 0.0824 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+These numbers show a mixed picture.
+ChartQA is not great, but it is at least giving some useful signal.
+HallusionBench is still very weak.
+So right now the baseline model is clearly not solving multimodal hallucination well.
+
+ChartQA is the clearest positive signal so far.
+The overall relaxed accuracy is around 0.38.
+The augmented split is better at around 0.50.
+The human split is weaker at around 0.26.
+So the model is getting some chart questions right, but the benchmark is still difficult.
+
+HallusionBench is much worse.
+The overall accuracy is only around 0.018.
+Some subgroups are slightly better, like the video subgroup at about 0.082 and the illusion subgroup at about 0.042.
+But overall the baseline is still struggling badly on this benchmark.
+
+This is not a bad milestone result.
+It actually tells me something important.
+The problem is still hard for the baseline model.
+That means there is real room for the image aware method to matter.
+
+\section*{Dependence Analysis}
+I also measured how often the model changed its answer when I changed the image input.
+This was done using blank image and mismatched image variants.
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Metric & Value \\
+\midrule
+blank changed rate & 0.9667 \\
+mismatch changed rate & 0.9285 \\
+blank score drop mean & 0.0559 \\
+mismatch score drop mean & 0.0522 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This is one of the most interesting results so far.
+The model changes its output a lot when the image is altered.
+So it is clearly sensitive to the visual input.
+That is good in one sense because it means the model is not totally ignoring the image.
+
+But this does not automatically mean the model is well grounded.
+A lot of the changed outputs are still wrong or only partly useful.
+So my current view is that the model is image sensitive but still unreliable.
+
+I think this is an important nuance.
+If a model never changes when the image changes, then it is probably ignoring the image.
+That is bad.
+But if a model changes a lot and still gives bad answers, then it is using the image in an unstable or weak way.
+That seems closer to what is happening here.
+
+So the dependence analysis suggests visual sensitivity, but not strong visual reliability.
+
+\section*{POPE Evaluation Issue}
+During evaluation I found a bug in the POPE metric pipeline.
+The model often answered in natural language like:
+
+\begin{itemize}
+    \item ``Yes, there is a snowboard in the image''
+    \item ``There is no car present in the image''
+\end{itemize}
+
+The original POPE scorer only accepted exact \texttt{yes} or \texttt{no}.
+Because of that, the first POPE results looked artificially bad.
+
+I fixed this by normalizing common yes and no sentence patterns.
+After that fix the standard DPO evaluation had to be rerun.
+So for this milestone I am not treating the earlier POPE zero score as a real scientific result.
+
+This was actually a useful milestone finding.
+It showed that the evaluation pipeline needed more robust answer normalization.
+
+This bug was important because the model was often saying sensible things like ``Yes, there is a snowboard in the image'' or ``There is no car present in the image''.
+Those should count as yes and no answers.
+So the original zero score was not a trustworthy measure of true model quality.
+
+For the milestone, the safe thing is to report that the POPE evaluator needed a normalization fix and that the corrected rerun is part of the next step.
+
+\section*{Qualitative Examples}
+Looking at sample outputs was useful.
+Some ChartQA examples were answered correctly with exact numeric outputs.
+Other examples gave long descriptive answers when a short number was expected.
+I also saw many cases where the answer changed under blank or mismatched images.
+
+That supports the same high level story from the dependence summary.
+The model does react to image changes.
+But the reaction is not always reliable and it does not yet guarantee correct grounding.
+
+Here are a few concrete examples from the standard DPO evaluation.
+
+\begin{itemize}
+    \item On a ChartQA sample asking ``Who portrayed Jon Snow'' the ground truth was ``Kit Harington'' but the model gave a long descriptive sentence and was marked wrong.
+    \item On another ChartQA sample asking how many people applied for universal credit, the model answered exactly ``950000'' and was correct.
+    \item On a wage question for Austria in 2010, the ground truth was ``42295'' but the model answered ``41542'' and was wrong.
+\end{itemize}
+
+These examples show two things.
+First, the model can sometimes extract the right number exactly.
+Second, it also often fails by giving a long fluent answer when a short exact answer is needed.
+
+That is especially important for ChartQA.
+The model is not only making factual mistakes.
+Sometimes it is also failing the response format that the benchmark expects.
+
+\section*{Main Takeaways For This Milestone}
+The biggest thing I can say now is that the full project pipeline works.
+
+\begin{itemize}
+    \item full pilot training completed for both models
+    \item full benchmark evaluation completed for the standard DPO baseline
+    \item artifact saving and dashboard preparation work
+    \item the baseline model still struggles on hard hallucination benchmarks
+    \item the baseline model shows meaningful image sensitivity under dependence tests
+    \item POPE scoring needed a normalization fix because the model answered in full sentences
+    \item the image aware comparison is the next major result to finish
+\end{itemize}
+
+So this milestone is mainly about implementation and early experimental signal.
+It is not the final comparison yet.
+But it is enough to show that the project is real, working, and already producing useful evidence.
+
+\section*{What I Will Do Next}
+The next steps are:
+
+\begin{itemize}
+    \item finish the corrected standard DPO rerun for POPE sensitive reporting
+    \item finish the image aware evaluation rerun
+    \item compare standard DPO and image aware DPO side by side
+    \item build the dashboard artifacts for both finished runs
+    \item write up benchmark level and qualitative comparisons
+    \item decide whether image aware DPO improves grounding or just changes output behavior
+\end{itemize}
+
+The final report will focus on that comparison.
+Right now the baseline result already gives me a clear starting point.
+The remaining task is to see whether the image aware method actually improves on it.
+
+\section*{Honest Status At This Milestone}
+I think this is a strong milestone because the full training pipeline is no longer hypothetical.
+Both full pilot runs finished.
+The baseline evaluation works.
+The artifact system works.
+The dependence analysis works.
+And I already found one real evaluator bug through qualitative inspection of model outputs.
+
+At the same time, I do not want to pretend the project is finished.
+The most important final result is still the direct comparison between the standard DPO and image aware DPO models.
+That comparison is close, but not fully closed out yet.
+
+Another honest limitation is runtime.
+Even with a stronger Colab GPU, the pipeline is still expensive in time.
+That slows down iteration and makes debugging more costly than in a normal small ML class project.
+So part of the engineering work in this milestone was not only model training.
+It was also making the pipeline robust enough to survive long Colab runs and save progress correctly.
+
+So my honest summary is this.
+The implementation part is strong and complete enough to trust.
+The experimental story is already meaningful.
+The last step is to finish the corrected evaluation comparison and write the final conclusions from it.
+
+\end{document}
