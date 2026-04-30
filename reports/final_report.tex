@@ -360,12 +360,23 @@ So the image aware model is more responsive, but this does not translate into a 
 \section*{11. Dashboard}
 The project also includes a Streamlit dashboard.
 The dashboard reads saved run artifacts.
-It lets me inspect benchmark metrics, prediction examples, training preferences, and failure tags.
+It lets me inspect benchmark metrics, prediction examples, training preferences, failure tags, training curves, and dependence behavior.
 
 The dashboard is useful because the final result is not just one number.
 Some examples show correct image grounding.
 Other examples show fluent but wrong answers.
 Looking at examples helps explain what the metrics mean.
+
+I also added a Story Map page for the final presentation.
+This page is meant to show the main project story quickly.
+It includes a method and benchmark network, a Sankey style flow from preference data to model results, a heatmap of metric differences, a dependence tree, and a radar style dependence fingerprint.
+These views make the result easier to explain because they show where image aware DPO helped and where it did not.
+
+The dashboard does not do live model inference on my laptop.
+That is intentional.
+The model is too large to run comfortably on my local machine.
+The heavy model training and evaluation were done on Colab.
+The local dashboard is for analysis, presentation, and qualitative inspection of the saved results.
 
 The dashboard uses saved files like:
 
@@ -376,6 +387,9 @@ The dashboard uses saved files like:
     \item \texttt{dashboard\_examples.parquet}
     \item \texttt{dashboard\_summary.parquet}
 \end{itemize}
+
+For the final demo, I would start with the Story Map page, then show the Comparison page, then show a few examples from the Dependence and Examples pages.
+This gives both the high level result and the concrete evidence behind it.
 
 \section*{12. Discussion}
 The results partly support the hypothesis.

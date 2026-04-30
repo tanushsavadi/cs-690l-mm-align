@@ -115,6 +115,27 @@ The clean conclusion is:
 This is still a useful result because it shows that the image-aware objective
 changes behavior in the intended direction, but the effect size is small.
 
+## Dashboard Notes
+
+The dashboard is now meant to be part of the final presentation, not just a
+debugging tool. The strongest page to open first is `Story Map`. It gives a
+quick visual explanation of the project using:
+
+- a method-to-benchmark network graph
+- a Sankey style flow from preference data to model outcomes
+- a metric delta heatmap
+- a dependence tree
+- a radar style dependence fingerprint
+
+The dashboard also has separate pages for detailed comparison, dependence
+analysis, training curves, qualitative examples, preference examples, and
+failure tags.
+
+The dashboard does not run live model inference locally. That is intentional.
+The model work was done on Colab because the Qwen2.5-VL model and adapters are
+too heavy for a normal laptop workflow. The local dashboard reads cached
+artifacts and is used to explain the completed experiment.
+
 ## Reporting Notes
 
 - Do not use the old image-aware HallusionBench value of `0.1250`.
