@@ -18,6 +18,9 @@ navigation = st.navigation(
         st.Page(pages_root / "2_Examples.py", title="Examples", icon=":material/image:"),
         st.Page(pages_root / "3_Preferences.py", title="Preferences", icon=":material/tune:"),
         st.Page(pages_root / "4_Failures.py", title="Failures", icon=":material/error:"),
+        st.Page(pages_root / "5_Comparison.py", title="Comparison", icon=":material/compare_arrows:"),
+        st.Page(pages_root / "6_Dependence.py", title="Dependence", icon=":material/hub:"),
+        st.Page(pages_root / "7_Training.py", title="Training", icon=":material/monitoring:"),
     ]
 )
 navigation.run()

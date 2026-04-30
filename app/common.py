@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -22,6 +23,16 @@ def list_runs() -> list[str]:
         [path.name for path in ARTIFACTS_DIR.iterdir() if path.is_dir()],
         reverse=True,
     )
+
+
+def model_label(run_id: str) -> str:
+    if "image_aware" in run_id:
+        return "image_aware_dpo"
+    if "standard_dpo" in run_id:
+        return "standard_dpo"
+    if "smoke" in run_id:
+        return f"smoke: {run_id}"
+    return run_id
 
 
 def sidebar_run_selector() -> str | None:
@@ -70,6 +81,47 @@ def load_preferences(run_id: str) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
     return pd.read_parquet(path)
+
+
+@st.cache_data
+def load_dependence(run_id: str) -> pd.DataFrame:
+    path = ARTIFACTS_DIR / run_id / "dependence.jsonl"
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_json(path, lines=True)
+
+
+@st.cache_data
+def load_metrics(run_id: str) -> dict:
+    path = ARTIFACTS_DIR / run_id / "metrics.json"
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text())
+
+
+@st.cache_data
+def load_training_history(run_id: str) -> pd.DataFrame:
+    metrics = load_metrics(run_id)
+    history = metrics.get("log_history", [])
+    if not history:
+        return pd.DataFrame()
+    frame = pd.DataFrame(history)
+    frame["run_id"] = run_id
+    frame["model"] = metrics.get("model_variant") or model_label(run_id)
+    return frame
+
+
+def load_selected_summaries(run_ids: list[str]) -> pd.DataFrame:
+    frames = []
+    for run_id in run_ids:
+        frame = load_summary(run_id).copy()
+        if frame.empty:
+            continue
+        frame["model"] = model_label(run_id)
+        frames.append(frame)
+    if not frames:
+        return pd.DataFrame()
+    return pd.concat(frames, ignore_index=True)
 
 
 def require_run() -> str | None:

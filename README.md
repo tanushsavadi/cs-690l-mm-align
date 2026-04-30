@@ -83,6 +83,22 @@ instead of `streamlit run app/dashboard.py`. This avoids accidentally using a
 different Homebrew Python environment from the one where the project was
 installed.
 
+The dashboard pages are:
+
+- `Overview`: metrics for one selected run.
+- `Examples`: qualitative predictions for original, blank, and mismatched
+  image cases.
+- `Preferences`: saved preference examples and training margins.
+- `Failures`: failure-tagged prediction examples.
+- `Comparison`: side-by-side metric comparison between completed runs.
+- `Dependence`: blank-image and mismatched-image sensitivity summaries.
+- `Training`: cached training curves from `metrics.json`.
+
+The dashboard intentionally does not run live VLM inference on the laptop. Live
+testing would require loading the Qwen2.5-VL model and LoRA adapters, which is
+why the heavy model work is done on Colab and the local dashboard reads saved
+artifacts.
+
 ## Key Design Choices
 
 - The MacBook is treated as a development and dashboard machine, not a serious
