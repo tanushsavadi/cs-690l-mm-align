@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from app.common import list_runs, load_dependence, model_label
+from app.common import default_final_runs, dependence_summary, list_runs, load_selected_dependence
 
 st.title("Dependence")
 st.caption(
@@ -23,46 +23,18 @@ if not runs:
     st.warning("No run artifacts found.")
     st.stop()
 
-default_runs = [
-    run
-    for run in runs
-    if run in {"2026-04-08-standard_dpo-pilot-7", "2026-04-08-image_aware_dpo-pilot-7"}
-]
-if not default_runs:
-    default_runs = runs[:2]
+default_runs = default_final_runs(runs)
 
 selected_runs = st.multiselect("Runs", runs, default=default_runs)
 if not selected_runs:
     st.stop()
 
-frames = []
-for run_id in selected_runs:
-    frame = load_dependence(run_id).copy()
-    if frame.empty:
-        continue
-    frame["model"] = model_label(run_id)
-    frames.append(frame)
-
-if not frames:
+dependence = load_selected_dependence(selected_runs)
+if dependence.empty:
     st.info("No dependence artifacts found for the selected runs.")
     st.stop()
 
-dependence = pd.concat(frames, ignore_index=True)
-
-summary_rows = []
-for (run_id, model), group in dependence.groupby(["run_id", "model"], dropna=False):
-    summary_rows.append(
-        {
-            "run_id": run_id,
-            "model": model,
-            "samples": len(group),
-            "blank_changed_rate": group["blank_changed"].mean(),
-            "mismatch_changed_rate": group["mismatch_changed"].mean(),
-            "blank_score_drop_mean": group["blank_score_drop"].mean(),
-            "mismatch_score_drop_mean": group["mismatch_score_drop"].mean(),
-        }
-    )
-summary = pd.DataFrame(summary_rows)
+summary = dependence_summary(dependence)
 
 st.subheader("Overall Dependence Summary")
 st.dataframe(summary, width="stretch", hide_index=True)
@@ -80,6 +52,21 @@ long_summary = summary.melt(
 )
 st.plotly_chart(
     px.bar(long_summary, x="metric", y="value", color="model", barmode="group"),
+    theme="streamlit",
+)
+
+st.subheader("Dependence Tree")
+tree = long_summary.copy()
+tree["metric_family"] = tree["metric"].str.replace("_mean", "", regex=False).str.replace("_rate", "", regex=False)
+st.plotly_chart(
+    px.treemap(
+        tree,
+        path=["model", "metric_family", "metric"],
+        values="value",
+        color="value",
+        color_continuous_scale="Teal",
+        title="How each model reacts to image perturbations",
+    ),
     theme="streamlit",
 )
 

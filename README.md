@@ -86,13 +86,18 @@ installed.
 The dashboard pages are:
 
 - `Overview`: metrics for one selected run.
+- `Story Map`: a professor-facing visual story with a method/benchmark network,
+  Sankey flow, delta heatmap, dependence tree, and radar fingerprint.
 - `Examples`: qualitative predictions for original, blank, and mismatched
   image cases.
 - `Preferences`: saved preference examples and training margins.
 - `Failures`: failure-tagged prediction examples.
-- `Comparison`: side-by-side metric comparison between completed runs.
-- `Dependence`: blank-image and mismatched-image sensitivity summaries.
-- `Training`: cached training curves from `metrics.json`.
+- `Comparison`: side-by-side metric comparison between completed runs, including
+  delta bars, a heatmap, and a metric tree.
+- `Dependence`: blank-image and mismatched-image sensitivity summaries, with a
+  dependence tree and perturbation example explorer.
+- `Training`: cached training curves from `metrics.json`, including a phase
+  space view and final training fingerprint.
 
 The dashboard intentionally does not run live VLM inference on the laptop. Live
 testing would require loading the Qwen2.5-VL model and LoRA adapters, which is
