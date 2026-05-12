@@ -1,42 +1,36 @@
-\documentclass[11pt]{article}
-\usepackage[margin=1in]{geometry}
-\usepackage[T1]{fontenc}
+\documentclass{article}
+
+% NeurIPS 2026 style for the CS 690L final report.
+% I use final mode so the author name appears in the course submission.
+\usepackage[main, final, nonatbib]{neurips_2026}
+
 \usepackage[utf8]{inputenc}
-\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
 \usepackage{booktabs}
 \usepackage{array}
-\usepackage{hyperref}
+\usepackage{amsfonts}
+\usepackage{microtype}
+\usepackage{xcolor}
 \usepackage{enumitem}
 \setlist[itemize]{leftmargin=1.25em}
-\setlength{\parskip}{0.55em}
-\setlength{\parindent}{0pt}
 
-\title{Final Report\\Multimodal Hallucination Alignment}
-\author{Tanush Savadi}
-\date{April 2026}
+\title{Multimodal Hallucination Alignment}
+\author{%
+  Tanush Savadi \\
+  COMPSCI 690L: Advanced Topics in Generative AI \\
+  University of Massachusetts Amherst
+}
 
 \begin{document}
 \maketitle
 
-\section*{Abstract}
-This project studies whether image aware preference tuning can make a vision language model less likely to hallucinate.
-The base model is Qwen2.5-VL-3B-Instruct.
-I compare two fine tuned versions of the same model.
-The first one uses standard DPO.
-The second one uses an image aware DPO objective.
+\begin{abstract}
+This project studies whether image aware preference tuning can make a vision language model less likely to hallucinate. I compare standard DPO with an image aware DPO variant on Qwen2.5-VL-3B-Instruct \cite{qwen25vl}. The main idea is that a good multimodal model should not only give a fluent answer, but should give an answer that is supported by the image. I evaluate both trained adapters on HallusionBench, POPE, and ChartQA, and I also test each sample with the original image, a blank image, and a mismatched image. The result is mixed but useful. Image aware DPO gives the clearest gain on ChartQA, is roughly tied with standard DPO on HallusionBench, and is slightly worse on POPE. It also changes its answers a bit more often when images are blanked or mismatched, so the hypothesis is partly supported, but the gains are modest.
+\end{abstract}
 
-The main idea is that a good multimodal model should not only give a fluent answer.
-It should give an answer that is supported by the image.
-So I evaluate the models on normal images, blank images, and mismatched images.
-I also evaluate them on HallusionBench, POPE, and ChartQA.
-
-The final result is mixed but useful.
-Image aware DPO improves ChartQA and is slightly better on HallusionBench.
-Standard DPO is slightly better on POPE.
-The image aware model also changes its answers a bit more often when images are blanked or mismatched.
-So the hypothesis is partly supported, but the gains are modest.
-
-\section*{1. Introduction}
+\section{Introduction}
 Large vision language models can answer questions about images.
 But they can also hallucinate.
 In this project, hallucination means the model says something that is not supported by the image.
@@ -61,8 +55,8 @@ My hypothesis was that image aware DPO would help.
 I expected it to improve performance when the answer depends strongly on the image.
 I also expected it to make the model more sensitive to image changes.
 
-\section*{2. Background}
-DPO stands for Direct Preference Optimization.
+\section{Background}
+DPO stands for Direct Preference Optimization \cite{dpo}.
 It is a way to fine tune a model using preference pairs.
 Each example has a prompt, a chosen answer, and a rejected answer.
 The model learns to prefer the chosen answer.
@@ -86,7 +80,7 @@ In simple terms:
     \item image aware DPO says, prefer the better answer when the image actually supports it
 \end{itemize}
 
-\section*{3. System Overview}
+\section{System Overview}
 The project is built as an end to end experiment pipeline.
 It has four main parts.
 
@@ -101,7 +95,7 @@ The code prepares data into one shared format.
 Each example has a sample id, an image path, a prompt, a ground truth answer, metadata, and a mismatched image path.
 This makes it easier to use the same evaluation code across multiple benchmarks.
 
-The training pipeline creates LoRA adapters for Qwen2.5-VL-3B-Instruct.
+The training pipeline creates LoRA adapters for Qwen2.5-VL-3B-Instruct \cite{lora,qwen25vl}.
 I do not train the whole model from scratch.
 This is important because full multimodal training would be too expensive for this class project.
 
@@ -110,8 +104,8 @@ This was important because the runs were long and Colab sessions were not always
 The dashboard reads those saved artifacts.
 It does not run live model inference.
 
-\section*{4. Data}
-The preference training data comes from \texttt{trl-lib/rlaif-v}.
+\section{Data}
+The preference training data comes from \texttt{trl-lib/rlaif-v} \cite{rlaifv}.
 The full pilot uses 8000 training examples and 1000 validation examples.
 
 For evaluation I use three benchmarks.
@@ -122,9 +116,9 @@ For evaluation I use three benchmarks.
     \item ChartQA
 \end{itemize}
 
-HallusionBench is used to test multimodal hallucination.
-POPE is used for object existence questions.
-ChartQA is used to test chart based visual question answering.
+HallusionBench is used to test multimodal hallucination \cite{hallusionbench}.
+POPE is used for object existence questions \cite{pope}.
+ChartQA is used to test chart based visual question answering \cite{chartqa}.
 
 For each evaluation sample, I use three image variants.
 
@@ -140,15 +134,15 @@ If the answer changes, that means the model is at least sensitive to the image.
 But changing the answer is not always enough.
 The changed answer also needs to be useful.
 
-\section*{5. Methods}
-\subsection*{Standard DPO}
+\section{Methods}
+\subsection{Standard DPO}
 The standard DPO model is trained on normal preference pairs.
 For each image and prompt, the model learns to prefer the chosen response over the rejected response.
 
 This is the baseline alignment method.
 It tells us what happens when we fine tune the model with preference data but do not add the extra image aware term.
 
-\subsection*{Image Aware DPO}
+\subsection{Image Aware DPO}
 The image aware DPO model uses the same preference data, but it also considers a mismatched image.
 The model is encouraged to separate the matched image case from the mismatched image case.
 
@@ -158,7 +152,7 @@ This should make the model more visually grounded.
 The image aware objective has an extra gap term.
 This makes training noisier, but it is the part that tries to enforce image dependence.
 
-\section*{6. Experiment Setup}
+\section{Experiment Setup}
 The main full pilot setup was:
 
 \begin{itemize}
@@ -181,7 +175,7 @@ The two final run ids are:
 All artifacts were saved to Google Drive.
 This includes adapter weights, metrics, predictions, dependence files, and dashboard parquet files.
 
-\section*{7. Engineering Work}
+\section{Engineering Work}
 A large part of this project was getting the pipeline to run reliably.
 This was not just a small notebook experiment.
 The model is large enough that runtime and memory problems matter.
@@ -204,6 +198,20 @@ The full evaluation can take hours.
 If the runtime disconnects, it should not lose all progress.
 The final evaluator can reuse cached predictions and only generate missing ones.
 
+The compute side was also a real part of the project.
+I ran the main workflow through Google Colab over several weeks, rather than as one clean local script.
+The larger pilot runs needed stronger Colab GPUs such as G4, A100, and H100 class runtimes when they were available.
+Even with those GPUs, the full pipeline was time consuming.
+Training both adapters took hours, and full evaluation was slower because each benchmark sample was tested with the original image, a blank image, and a mismatched image.
+That is why the final system saves every important artifact to Google Drive.
+Without this, a runtime disconnect or laptop shutdown could lose several hours of work.
+
+This also affected the project design.
+I did not make the dashboard run live model inference because that would be too heavy for a normal laptop.
+Instead, the dashboard is artifact driven.
+It reads the completed Colab outputs and turns them into the final analysis.
+This made the project more reliable and easier to present.
+
 There was also a POPE scoring issue.
 The model often answered in full sentences like ``Yes, there is a snowboard in the image''.
 The first scorer expected only exact \texttt{yes} or \texttt{no}.
@@ -217,7 +225,7 @@ It skipped many image aware HallusionBench rows by mistake.
 I fixed the cache key to include the prompt, ground truth, image path, metadata, and image variant.
 After that fix, the image aware run had the full expected prediction count.
 
-\section*{8. Training Results}
+\section{Training Results}
 Both full pilot training runs completed.
 
 \begin{center}
@@ -238,7 +246,7 @@ The image aware model has extra terms, so its loss is not directly comparable to
 The main point is that both training runs completed and produced usable LoRA adapters.
 The image aware gap loss also shows that the image aware part of the objective was active.
 
-\section*{9. Final Evaluation Results}
+\section{Final Evaluation Results}
 The final evaluation used the corrected prediction files.
 The image aware run had the expected count:
 
@@ -257,7 +265,7 @@ ChartQA & 1920 \\
 The total prediction count was 36147.
 This is the sum of all benchmark samples times three image variants.
 
-\subsection*{Headline Metrics}
+\subsection{Headline Metrics}
 \begin{center}
 \begin{tabular}{llrr}
 \toprule
@@ -276,7 +284,7 @@ Image aware DPO is better on ChartQA.
 It is also slightly better on HallusionBench.
 Standard DPO is slightly better on POPE.
 
-\subsection*{ChartQA}
+\subsection{ChartQA}
 ChartQA is the clearest positive result for image aware DPO.
 
 \begin{center}
@@ -294,7 +302,7 @@ overall relaxed accuracy & 0.3797 & 0.4063 \\
 The image aware model improves both the augmented split and the human split.
 This suggests that the image aware objective helped on chart based visual question answering.
 
-\subsection*{HallusionBench}
+\subsection{HallusionBench}
 HallusionBench is almost tied, with a very small advantage for image aware DPO.
 
 \begin{center}
@@ -312,7 +320,7 @@ category VS accuracy & 0.5911 & 0.5948 \\
 This should not be described as a large improvement.
 It is better to say that the two models are basically competitive on HallusionBench, with image aware DPO slightly higher.
 
-\subsection*{POPE}
+\subsection{POPE}
 On POPE, standard DPO is slightly higher.
 
 \begin{center}
@@ -333,7 +341,40 @@ The gap is very small.
 So I would not say that standard DPO strongly wins on POPE.
 I would say image aware DPO did not improve POPE in this pilot.
 
-\section*{10. Dependence Results}
+\section{Statistical Evidence}
+After getting the final metrics, I added an artifact only statistical analysis step.
+This step does not rerun the model.
+It reads the saved prediction files and compares the two models on the exact same samples.
+It also uses bootstrap resampling to estimate confidence intervals for the metric differences.
+
+\begin{center}
+\small
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+Benchmark & Metric & Delta & 95\% low & 95\% high & P(IA $>$ Std) \\
+\midrule
+ChartQA & relaxed accuracy & 0.0266 & 0.0177 & 0.0359 & 1.0000 \\
+HallusionBench & accuracy & 0.0018 & -0.0080 & 0.0124 & 0.6230 \\
+POPE & accuracy & -0.0016 & -0.0032 & 0.0003 & 0.0410 \\
+POPE & F1 & -0.0016 & -0.0033 & 0.0000 & 0.0260 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The delta is image aware DPO minus standard DPO.
+This makes the interpretation more careful.
+The ChartQA gain looks like the strongest result because its interval is fully above zero.
+HallusionBench is better described as a near tie because its interval crosses zero.
+POPE slightly favors standard DPO, but the gap is still very small.
+
+I also counted paired wins and losses.
+On ChartQA, image aware DPO is correct when standard DPO is wrong on 64 examples, while standard DPO is correct when image aware DPO is wrong on 13 examples.
+On HallusionBench, the counts are 16 image aware wins and 14 standard wins.
+On POPE, the counts are 27 image aware wins and 41 standard wins.
+This supports the same story as the metrics.
+The image aware method helped most on ChartQA, was basically tied on HallusionBench, and did not improve POPE.
+
+\section{Dependence Results}
 The dependence metrics measure how much the model changes when the image is blanked or mismatched.
 
 \begin{center}
@@ -357,10 +398,10 @@ The blank score drop is slightly lower for image aware DPO.
 The mismatch score drop is the same.
 So the image aware model is more responsive, but this does not translate into a large robustness gain.
 
-\section*{11. Dashboard}
+\section{Dashboard}
 The project also includes a Streamlit dashboard.
 The dashboard reads saved run artifacts.
-It lets me inspect benchmark metrics, prediction examples, training preferences, failure tags, training curves, and dependence behavior.
+It lets me inspect benchmark metrics, statistical evidence, prediction examples, training preferences, failure tags, training curves, and dependence behavior.
 
 The dashboard is useful because the final result is not just one number.
 Some examples show correct image grounding.
@@ -371,6 +412,12 @@ I also added a Story Map page for the final presentation.
 This page is meant to show the main project story quickly.
 It includes a method and benchmark network, a Sankey style flow from preference data to model results, a heatmap of metric differences, a dependence tree, and a radar style dependence fingerprint.
 These views make the result easier to explain because they show where image aware DPO helped and where it did not.
+
+I also added an Evidence page.
+This page is more like the proof page.
+It shows bootstrap confidence intervals, paired win and loss counts, bootstrap delta distributions, dependence evidence, and representative examples.
+This matters because the final result is subtle.
+The Evidence page helps separate the stronger ChartQA result from the weaker HallusionBench and POPE differences.
 
 The dashboard does not do live model inference on my laptop.
 That is intentional.
@@ -386,14 +433,16 @@ The dashboard uses saved files like:
     \item \texttt{dependence.jsonl}
     \item \texttt{dashboard\_examples.parquet}
     \item \texttt{dashboard\_summary.parquet}
+    \item \texttt{evidence\_summary.parquet}
+    \item \texttt{evidence\_paired\_cases.parquet}
 \end{itemize}
 
-For the final demo, I would start with the Story Map page, then show the Comparison page, then show a few examples from the Dependence and Examples pages.
+For the final demo, I would start with the Story Map page, then show the Evidence page, then show a few examples from the Dependence and Examples pages.
 This gives both the high level result and the concrete evidence behind it.
 
-\section*{12. Discussion}
+\section{Discussion}
 The results partly support the hypothesis.
-Image aware DPO improves ChartQA and is slightly better on HallusionBench.
+Image aware DPO improves ChartQA and is roughly tied with standard DPO on HallusionBench.
 It also makes the model slightly more likely to change its answer when the image changes.
 
 However, the effect is not large.
@@ -408,16 +457,21 @@ It did not give a clear overall win across every hallucination benchmark.
 This is still a useful result.
 It shows that the method has potential, but it also shows that simply adding an image mismatch term is not enough to solve multimodal hallucination.
 
-\section*{13. Limitations}
+\section{Limitations}
 There are several limitations.
 
 First, this is a pilot scale experiment.
 The training set is not huge.
-The results should not be treated as a large scale final claim.
+I also only ran one final seed.
+So the results should not be treated as a large scale final claim.
+They are better understood as a careful pilot study.
 
 Second, the project depends on Colab GPU access.
 The full pipeline is slow even on stronger Colab GPUs.
 This made debugging and rerunning expensive.
+It also means the project is not easy to reproduce quickly on a normal laptop.
+In practice, this meant the project required careful scheduling around available Colab runtimes and repeated checks that files were being saved to Drive.
+Some of the engineering work, like checkpointed predictions and cached dashboard files, came directly from this compute constraint.
 
 Third, the model is only one base model.
 The result might be different for a larger Qwen model or a different model family.
@@ -429,13 +483,13 @@ A stronger method might need better negative images, better losses, or benchmark
 Fifth, automatic metrics do not capture everything.
 The dashboard and qualitative examples are still important for understanding the model behavior.
 
-\section*{14. Conclusion}
+\section{Conclusion}
 This project built and tested an end to end multimodal alignment pipeline.
 It prepared data, trained two LoRA adapters, evaluated both models, saved artifacts, and built dashboard data.
 
-The final result is that image aware DPO gives modest gains.
+The final result is that image aware DPO gives modest grounding related gains.
 It improves ChartQA from 0.3797 to 0.4063.
-It slightly improves HallusionBench from 0.5722 to 0.5740.
+It is roughly tied on HallusionBench, with 0.5740 compared with 0.5722 for standard DPO.
 It is slightly worse on POPE, with 0.8718 accuracy compared with 0.8733 for standard DPO.
 
 The dependence analysis also shows that image aware DPO is slightly more sensitive to blank and mismatched images.
@@ -451,5 +505,66 @@ It gives a small grounding benefit while staying close to standard DPO on the ot
 
 For a class project, I think this is a meaningful result.
 The system works end to end, the comparison is real, and the final conclusion is honest rather than over claimed.
+
+\section{Work Contribution and Code Availability}
+This was an individual final project, so all project work was completed by me.
+My contribution includes the project design, data preparation code, training pipeline, image aware DPO implementation, benchmark evaluation, resumable prediction caching, metric fixes, statistical analysis, dashboard, final report, and presentation materials.
+
+The public GitHub repository is:
+\begin{quote}
+\url{https://github.com/tanushsavadi/cs-690l-mm-align}
+\end{quote}
+
+The repository includes the source code, configs, tests, dashboard code, report source, and final analysis artifacts.
+The largest raw image datasets and model checkpoints are not all stored directly in the repository because they are too large for normal GitHub usage.
+Instead, the code is written so the experiment can read those files from local paths or Google Drive paths when available.
+
+\begin{thebibliography}{9}
+
+\bibitem{dpo}
+Rafael Rafailov, Archit Sharma, Eric Mitchell, Stefano Ermon, Christopher D. Manning, and Chelsea Finn.
+\newblock Direct Preference Optimization: Your Language Model is Secretly a Reward Model.
+\newblock arXiv:2305.18290, 2023.
+\newblock \url{https://arxiv.org/abs/2305.18290}
+
+\bibitem{lora}
+Edward J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, and Weizhu Chen.
+\newblock LoRA: Low-Rank Adaptation of Large Language Models.
+\newblock arXiv:2106.09685, 2021.
+\newblock \url{https://arxiv.org/abs/2106.09685}
+
+\bibitem{qwen25vl}
+Shuai Bai, Keqin Chen, Xuejing Liu, Jialin Wang, Wenbin Ge, Sibo Song, Kai Dang, Peng Wang, Shijie Wang, Jun Tang, and others.
+\newblock Qwen2.5-VL Technical Report.
+\newblock arXiv:2502.13923, 2025.
+\newblock \url{https://arxiv.org/abs/2502.13923}
+
+\bibitem{rlaifv}
+TRL contributors.
+\newblock \texttt{trl-lib/rlaif-v}: a multimodal preference dataset.
+\newblock Hugging Face Datasets, accessed May 2026.
+\newblock \url{https://huggingface.co/datasets/trl-lib/rlaif-v}
+
+\bibitem{hallusionbench}
+Tianrui Guan, Fuxiao Liu, Xiyang Wu, Ruiqi Xian, Zongxia Li, Xiaoyu Liu, Xijun Wang, Lichang Chen, Furong Huang, Yaser Yacoob, Dinesh Manocha, and Tianyi Zhou.
+\newblock HallusionBench: An Advanced Diagnostic Suite for Entangled Language Hallucination and Visual Illusion in Large Vision-Language Models.
+\newblock arXiv:2310.14566, accepted to CVPR 2024.
+\newblock \url{https://arxiv.org/abs/2310.14566}
+
+\bibitem{pope}
+Yifan Li, Yifan Du, Kun Zhou, Jinpeng Wang, Xin Zhao, and Ji-Rong Wen.
+\newblock Evaluating Object Hallucination in Large Vision-Language Models.
+\newblock In Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing, pages 292--305, 2023.
+\newblock doi:10.18653/v1/2023.emnlp-main.20.
+\newblock \url{https://aclanthology.org/2023.emnlp-main.20/}
+
+\bibitem{chartqa}
+Ahmed Masry, Do Xuan Long, Jia Qing Tan, Shafiq Joty, and Enamul Hoque.
+\newblock ChartQA: A Benchmark for Question Answering about Charts with Visual and Logical Reasoning.
+\newblock In Findings of the Association for Computational Linguistics: ACL 2022, pages 2263--2279, 2022.
+\newblock doi:10.18653/v1/2022.findings-acl.177.
+\newblock \url{https://aclanthology.org/2022.findings-acl.177/}
+
+\end{thebibliography}
 
 \end{document}

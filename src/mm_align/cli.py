@@ -35,6 +35,21 @@ def build_parser() -> argparse.ArgumentParser:
         default=os.getenv("MM_ALIGN_ARTIFACTS_DIR", "artifacts/runs"),
         help="Artifact base directory.",
     )
+
+    stats = subparsers.add_parser(
+        "build-statistical-report",
+        help="Build artifact-only statistical evidence for two completed runs.",
+    )
+    stats.add_argument("--baseline-run", default="2026-04-08-standard_dpo-pilot-7", help="Baseline run ID.")
+    stats.add_argument("--candidate-run", default="2026-04-08-image_aware_dpo-pilot-7", help="Candidate run ID.")
+    stats.add_argument(
+        "--artifacts-dir",
+        default=os.getenv("MM_ALIGN_ARTIFACTS_DIR", "artifacts/runs"),
+        help="Artifact base directory.",
+    )
+    stats.add_argument("--reports-dir", default="reports", help="Directory for markdown and CSV report outputs.")
+    stats.add_argument("--bootstrap-samples", type=int, default=1000, help="Bootstrap resamples per metric.")
+    stats.add_argument("--seed", type=int, default=7, help="Bootstrap random seed.")
     return parser
 
 
@@ -47,6 +62,19 @@ def main() -> None:
         from mm_align.eval.dashboard_data import build_dashboard_artifacts
 
         build_dashboard_artifacts(Path(args.artifacts_dir), args.run)
+        return
+    if args.command == "build-statistical-report":
+        from mm_align.eval.statistical_report import build_statistical_report
+
+        paths = build_statistical_report(
+            artifacts_dir=Path(args.artifacts_dir),
+            reports_dir=Path(args.reports_dir),
+            baseline_run=args.baseline_run,
+            candidate_run=args.candidate_run,
+            bootstrap_samples=args.bootstrap_samples,
+            seed=args.seed,
+        )
+        print(paths.summary_md)
         return
 
     config = load_config(args.config)

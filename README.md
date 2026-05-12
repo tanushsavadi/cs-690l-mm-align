@@ -66,6 +66,7 @@ python -m mm_align.cli evaluate --config configs/pilot.yaml --run 2026-04-08-sta
 python -m mm_align.cli evaluate --config configs/pilot.yaml --run 2026-04-08-image_aware_dpo-pilot-7
 python -m mm_align.cli build-dashboard-data --run 2026-04-08-standard_dpo-pilot-7
 python -m mm_align.cli build-dashboard-data --run 2026-04-08-image_aware_dpo-pilot-7
+python -m mm_align.cli build-statistical-report --artifacts-dir artifacts/runs --reports-dir reports
 ```
 
 If you need a smaller fallback for a T4 or an unstable runtime, use
@@ -88,6 +89,8 @@ The dashboard pages are:
 - `Overview`: metrics for one selected run.
 - `Story Map`: a professor-facing visual story with a method/benchmark network,
   Sankey flow, delta heatmap, dependence tree, and radar fingerprint.
+- `Evidence`: bootstrap confidence intervals, paired win/loss counts,
+  bootstrap delta distributions, dependence evidence, and representative cases.
 - `Examples`: qualitative predictions for original, blank, and mismatched
   image cases.
 - `Preferences`: saved preference examples and training margins.

@@ -1,0 +1,13 @@
+benchmark,case_type,count,rate,total
+chartqa,image_aware_only_correct,64,0.03333333333333333,1920
+chartqa,standard_only_correct,13,0.0067708333333333336,1920
+chartqa,both_correct,716,0.3729166666666667,1920
+chartqa,both_wrong,1127,0.5869791666666667,1920
+hallusionbench,image_aware_only_correct,16,0.0141718334809566,1129
+hallusionbench,standard_only_correct,14,0.012400354295837024,1129
+hallusionbench,both_correct,632,0.5597874224977857,1129
+hallusionbench,both_wrong,467,0.4136403897254207,1129
+pope,image_aware_only_correct,27,0.003,9000
+pope,standard_only_correct,41,0.004555555555555556,9000
+pope,both_correct,7819,0.8687777777777778,9000
+pope,both_wrong,1113,0.12366666666666666,9000

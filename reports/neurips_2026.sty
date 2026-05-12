@@ -1,0 +1,94 @@
+% Lightweight local NeurIPS 2026 style shim for the CS 690L final report.
+% It follows the public NeurIPS 2026 template structure closely enough for
+% course submission and keeps the report self-contained for local compilation.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{neurips_2026}[2026/05/11 NeurIPS 2026 course-report style]
+
+\newif\if@neuripsfinal
+\newif\if@neuripspreprint
+\newif\if@neuripsnonatbib
+
+\DeclareOption{main}{}
+\DeclareOption{position}{}
+\DeclareOption{eandd}{}
+\DeclareOption{creativeai}{}
+\DeclareOption{sglblindworkshop}{}
+\DeclareOption{dblblindworkshop}{}
+\DeclareOption{final}{\@neuripsfinaltrue}
+\DeclareOption{preprint}{\@neuripspreprinttrue}
+\DeclareOption{nonatbib}{\@neuripsnonatbibtrue}
+\DeclareOption*{}
+\ProcessOptions\relax
+
+\RequirePackage[letterpaper,textwidth=5.5in,textheight=9in]{geometry}
+\RequirePackage{lmodern}
+\RequirePackage{fancyhdr}
+\RequirePackage{etoolbox}
+
+\if@neuripsnonatbib
+\else
+  \RequirePackage{natbib}
+\fi
+
+\pagestyle{fancy}
+\fancyhf{}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5.5pt}
+\setlength{\topsep}{4pt}
+\setlength{\partopsep}{0pt}
+
+\makeatletter
+\renewcommand{\maketitle}{%
+  \begin{center}
+    \rule{\linewidth}{4pt}\par
+    \vspace{0.25in}
+    {\LARGE\bfseries \@title \par}
+    \vspace{0.25in}
+    \rule{\linewidth}{1pt}\par
+    \vspace{0.25in}
+    \if@neuripsfinal
+      {\bfseries \@author \par}
+    \else
+      \if@neuripspreprint
+        {\bfseries \@author \par}
+      \else
+        {\bfseries Anonymous Author(s) \par}
+      \fi
+    \fi
+  \end{center}
+  \vspace{0.2in}
+}
+
+\renewenvironment{abstract}{%
+  \vspace{0.1in}
+  \begin{center}
+    {\bfseries Abstract}
+  \end{center}
+  \begin{quote}
+  \small
+}{%
+  \end{quote}
+  \vspace{0.1in}
+}
+
+\renewcommand{\section}{%
+  \@startsection{section}{1}{0pt}{1.5ex plus 0.5ex minus 0.2ex}{1ex plus 0.2ex}{\large\bfseries}%
+}
+\renewcommand{\subsection}{%
+  \@startsection{subsection}{2}{0pt}{1.25ex plus 0.5ex minus 0.2ex}{0.8ex plus 0.2ex}{\normalsize\bfseries}%
+}
+\renewcommand{\subsubsection}{%
+  \@startsection{subsubsection}{3}{0pt}{1ex plus 0.5ex minus 0.2ex}{0.5ex plus 0.2ex}{\normalsize\bfseries}%
+}
+
+\newcommand{\And}{\quad}
+\newcommand{\AND}{\par\vspace{0.5em}}
+
+\newenvironment{ack}{%
+  \section*{Acknowledgments}
+}{}
+\makeatother

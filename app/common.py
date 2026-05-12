@@ -119,6 +119,38 @@ def load_training_history(run_id: str) -> pd.DataFrame:
     return frame
 
 
+@st.cache_data
+def load_evidence_summary() -> pd.DataFrame:
+    path = ARTIFACTS_DIR / "evidence_summary.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_parquet(path)
+
+
+@st.cache_data
+def load_evidence_bootstrap() -> pd.DataFrame:
+    path = ARTIFACTS_DIR / "evidence_bootstrap_deltas.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_parquet(path)
+
+
+@st.cache_data
+def load_evidence_paired_cases() -> pd.DataFrame:
+    path = ARTIFACTS_DIR / "evidence_paired_cases.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_parquet(path)
+
+
+@st.cache_data
+def load_evidence_failure_cases() -> pd.DataFrame:
+    path = ARTIFACTS_DIR / "evidence_failure_cases.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_parquet(path)
+
+
 def load_selected_summaries(run_ids: list[str]) -> pd.DataFrame:
     frames = []
     for run_id in run_ids:

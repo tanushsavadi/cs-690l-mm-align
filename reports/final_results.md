@@ -98,6 +98,35 @@ or mismatched. That supports the idea that it made the model a bit more
 responsive to visual perturbations. However, the score drop metrics do not show
 a large advantage, so the grounding improvement is modest.
 
+## Statistical Evidence
+
+I added an artifact-only bootstrap analysis after the final evaluation. This
+does not rerun the model. It reads the cached prediction files and compares the
+two models on the same examples.
+
+| Benchmark | Metric | Delta | 95% CI low | 95% CI high | P(image-aware higher) |
+| --- | --- | ---: | ---: | ---: | ---: |
+| ChartQA | relaxed accuracy | 0.0266 | 0.0177 | 0.0359 | 1.0000 |
+| HallusionBench | accuracy | 0.0018 | -0.0080 | 0.0124 | 0.6230 |
+| POPE | accuracy | -0.0016 | -0.0032 | 0.0003 | 0.0410 |
+| POPE | F1 | -0.0016 | -0.0033 | 0.0000 | 0.0260 |
+
+The delta is `image_aware_dpo - standard_dpo`. This makes the claim more
+precise. ChartQA is the strongest positive result because the interval is fully
+above zero. HallusionBench is better described as a near tie. POPE slightly
+favors standard DPO.
+
+Paired case counts show the same pattern:
+
+| Benchmark | image-aware only correct | standard only correct | both correct | both wrong |
+| --- | ---: | ---: | ---: | ---: |
+| ChartQA | 64 | 13 | 716 | 1127 |
+| HallusionBench | 16 | 14 | 632 | 467 |
+| POPE | 27 | 41 | 7819 | 1113 |
+
+This is why the final claim should be modest: image-aware DPO clearly helps
+ChartQA in this pilot, but it does not clearly dominate across every benchmark.
+
 ## Final Interpretation
 
 The hypothesis is partially supported.
@@ -127,9 +156,11 @@ quick visual explanation of the project using:
 - a dependence tree
 - a radar style dependence fingerprint
 
-The dashboard also has separate pages for detailed comparison, dependence
-analysis, training curves, qualitative examples, preference examples, and
-failure tags.
+The `Evidence` page should be shown right after `Story Map`. It contains the
+bootstrap intervals, paired win/loss matrix, delta distributions, dependence
+evidence, and representative cases. The dashboard also has separate pages for
+detailed comparison, dependence analysis, training curves, qualitative examples,
+preference examples, and failure tags.
 
 The dashboard does not run live model inference locally. That is intentional.
 The model work was done on Colab because the Qwen2.5-VL model and adapters are
@@ -142,3 +173,6 @@ artifacts and is used to explain the completed experiment.
 - Do not use the old POPE zero result from before yes/no normalization was fixed.
 - Use the corrected run IDs listed above for all final tables.
 - The dashboard artifacts should be regenerated after any evaluation refresh.
+- The statistical evidence artifacts should be regenerated with
+  `python3 -m mm_align.cli build-statistical-report --artifacts-dir artifacts/runs --reports-dir reports`
+  after any evaluation refresh.
