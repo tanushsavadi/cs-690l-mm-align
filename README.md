@@ -1,8 +1,7 @@
 # Multimodal Hallucination Alignment Project
 
-This repository implements a greenfield research scaffold for studying whether
-image-aware preference optimization reduces hallucinations in multimodal
-language models.
+This repository implements a research pipeline for studying whether image-aware
+preference optimization reduces hallucinations in multimodal language models.
 
 The codebase is organized around three model variants:
 
@@ -32,8 +31,8 @@ artifact generation. The final headline metrics are:
 | POPE | accuracy | 0.8733 | 0.8718 |
 | POPE | F1 | 0.8830 | 0.8814 |
 
-The result is mixed but useful. Image-aware DPO improves ChartQA and is slightly
-higher on HallusionBench, while standard DPO is slightly higher on POPE. The
+The result is mixed but useful. Image-aware DPO improves ChartQA and is roughly
+tied on HallusionBench, while standard DPO is slightly higher on POPE. The
 dependence analysis also shows image-aware DPO changes answers slightly more
 often when images are blanked or mismatched. The effect is modest rather than a
 clear overall win.
@@ -41,6 +40,17 @@ clear overall win.
 See `reports/final_results.md` for the corrected result table, dependence
 summary, and interpretation notes. The final submission report is available at
 `reports/final_report.pdf`, with source in `reports/final_report.tex`.
+
+## Documentation
+
+The main docs are:
+
+- `docs/project_overview.md`: simple explanation of the project and final claim.
+- `docs/reproducibility.md`: Colab workflow, GPU/runtime notes, and rerun steps.
+- `docs/dashboard.md`: how to launch and present the dashboard.
+- `docs/artifacts.md`: expected run files and validation checks.
+- `docs/final_submission.md`: final zip checklist for CS 690L.
+- `notebooks/colab/README.md`: notebook-specific Colab command sequence.
 
 ## Quick Start
 
@@ -125,7 +135,9 @@ artifacts.
 ```text
 app/                  Streamlit multipage dashboard
 configs/              Smoke, pilot, and main experiment configs
+docs/                 Overview, runbook, dashboard, artifact, and submission docs
 notebooks/colab/      Colab setup and workflow scaffolding
+reports/              Final report, statistical summaries, and video script
 scripts/              Small helper scripts
 src/mm_align/         Package code
 tests/                Unit and integration tests

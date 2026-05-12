@@ -1,6 +1,8 @@
 # Colab Workflow
 
 Use Google Colab Pro for all training and bulk evaluation runs.
+For the fuller reproducibility notes, including compute limitations and final
+validation checks, see `../../docs/reproducibility.md`.
 
 ## Recommended Sequence
 
@@ -42,6 +44,7 @@ RUN_IMG = "2026-04-08-image_aware_dpo-pilot-7"
 !python -m mm_align.cli evaluate --config configs/pilot.yaml --run {RUN_IMG}
 !python -m mm_align.cli build-dashboard-data --run {RUN_STD} --artifacts-dir "$MM_ALIGN_ARTIFACTS_DIR"
 !python -m mm_align.cli build-dashboard-data --run {RUN_IMG} --artifacts-dir "$MM_ALIGN_ARTIFACTS_DIR"
+!python -m mm_align.cli build-statistical-report --artifacts-dir "$MM_ALIGN_ARTIFACTS_DIR" --reports-dir reports
 ```
 
 The Colab notebook should set the environment variables inside Python before
